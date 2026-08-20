@@ -146,6 +146,8 @@ func ToUserResponse(user *User) UserResponse {
 			ID:          role.ID,
 			Name:        role.Name,
 			DisplayName: role.DisplayName,
+			Description: role.Description,
+			IsSystem:    role.IsSystem,
 			Permissions: perms,
 		})
 	}

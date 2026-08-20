@@ -9,13 +9,14 @@ import (
 )
 
 type Config struct {
-	DBHost     string
-	DBPort     string
-	DBUser     string
-	DBPassword string
-	DBName     string
-	DBSSLMode  string
-	DBTimezone string
+	Environment  string
+	DBHost       string
+	DBPort       string
+	DBUser       string
+	DBPassword   string
+	DBName       string
+	DBSSLMode    string
+	DBTimezone   string
 
 	JWTSecret          string
 	JWTAccessExpiry    int
@@ -39,7 +40,8 @@ func Load() (*Config, error) {
 	refreshExpiry, _ := strconv.Atoi(getEnv("JWT_REFRESH_EXPIRY_DAYS", "30"))
 
 	cfg := &Config{
-		DBHost:     getEnv("DB_HOST", "localhost"),
+		Environment:  getEnv("ENVIRONMENT", "development"),
+		DBHost:       getEnv("DB_HOST", "localhost"),
 		DBPort:     getEnv("DB_PORT", "5432"),
 		DBUser:     getEnv("DB_USER", "postgres"),
 		DBPassword: getEnv("DB_PASSWORD", "postgres"),
@@ -70,6 +72,10 @@ func (c *Config) GetDSN() string {
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=%s",
 		c.DBHost, c.DBUser, c.DBPassword, c.DBName, c.DBPort, c.DBSSLMode, c.DBTimezone,
 	)
+}
+
+func (c *Config) IsProduction() bool {
+	return c.Environment == "production"
 }
 
 func getEnv(key, fallback string) string {

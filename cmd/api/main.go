@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/jehoshaphatbc/wedding-invitation-backend/internal/config"
+	"github.com/jehoshaphatbc/wedding-invitation-backend/internal/dashboard"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/internal/database"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/internal/handlers"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/internal/middleware"
@@ -33,7 +34,12 @@ func main() {
 		cfg.JWTIssuer,
 	)
 
-	seeds.Seed(db, cfg.SuperAdminName, cfg.SuperAdminEmail, cfg.SuperAdminPassword)
+	if !cfg.IsProduction() {
+		seeds.Seed(db, cfg.SuperAdminName, cfg.SuperAdminEmail, cfg.SuperAdminPassword)
+	} else {
+		fmt.Println("Production mode: seeding super admin only (permissions/roles via migrate CLI)")
+		seeds.SeedSuperAdminOnly(db, cfg.SuperAdminName, cfg.SuperAdminEmail, cfg.SuperAdminPassword)
+	}
 
 	userRepo := repositories.NewUserRepository(db)
 	refreshTokenRepo := repositories.NewRefreshTokenRepository(db)
@@ -64,6 +70,11 @@ func main() {
 			return
 		}
 		c.Next()
+	})
+
+	r.GET("/", func(c *gin.Context) {
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.String(200, dashboard.HTML)
 	})
 
 	r.GET("/health", func(c *gin.Context) {

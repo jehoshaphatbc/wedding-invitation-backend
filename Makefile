@@ -23,5 +23,17 @@ deps:
 lint:
 	golangci-lint run
 
+migrate-up:
+	go run cmd/migrate/main.go -action=up
+
+migrate-down:
+	go run cmd/migrate/main.go -action=down -steps=1
+
+migrate-status:
+	go run cmd/migrate/main.go -action=status
+
+migrate-version:
+	go run cmd/migrate/main.go -action=version
+
 seed:
 	go run cmd/api/main.go

@@ -77,6 +77,10 @@ func Seed(db *gorm.DB, superAdminName, superAdminEmail, superAdminPassword strin
 	seedSuperAdmin(db, superAdminName, superAdminEmail, superAdminPassword)
 }
 
+func SeedSuperAdminOnly(db *gorm.DB, superAdminName, superAdminEmail, superAdminPassword string) {
+	seedSuperAdmin(db, superAdminName, superAdminEmail, superAdminPassword)
+}
+
 func seedPermissions(db *gorm.DB) {
 	for _, p := range permissionList {
 		var existing models.Permission

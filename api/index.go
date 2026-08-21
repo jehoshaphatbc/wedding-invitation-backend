@@ -1,18 +1,17 @@
-//go:build ignore
-
-package main
+package handler
 
 import (
 	"log"
 	"net/http"
 
+	"github.com/gin-gonic/gin"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/internal/config"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/internal/database"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/internal/server"
 	seeds "github.com/jehoshaphatbc/wedding-invitation-backend/seeds"
 )
 
-var Handler http.Handler
+var engine *gin.Engine
 
 func init() {
 	cfg, err := config.Load()
@@ -23,7 +22,9 @@ func init() {
 	db := database.Connect(cfg)
 	seeds.Seed(db, cfg.SuperAdminName, cfg.SuperAdminEmail, cfg.SuperAdminPassword)
 
-	Handler = server.New(cfg, db)
+	engine = server.New(cfg, db)
 }
 
-func main() {}
+func Handler(w http.ResponseWriter, r *http.Request) {
+	engine.ServeHTTP(w, r)
+}

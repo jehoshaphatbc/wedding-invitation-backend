@@ -34,12 +34,7 @@ func main() {
 		cfg.JWTIssuer,
 	)
 
-	if !cfg.IsProduction() {
-		seeds.Seed(db, cfg.SuperAdminName, cfg.SuperAdminEmail, cfg.SuperAdminPassword)
-	} else {
-		fmt.Println("Production mode: seeding super admin only (permissions/roles via migrate CLI)")
-		seeds.SeedSuperAdminOnly(db, cfg.SuperAdminName, cfg.SuperAdminEmail, cfg.SuperAdminPassword)
-	}
+	seeds.Seed(db, cfg.SuperAdminName, cfg.SuperAdminEmail, cfg.SuperAdminPassword)
 
 	userRepo := repositories.NewUserRepository(db)
 	refreshTokenRepo := repositories.NewRefreshTokenRepository(db)

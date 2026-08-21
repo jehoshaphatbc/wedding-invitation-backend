@@ -1,8 +1,10 @@
+//go:build ignore
+
 package main
 
 import (
-	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/jehoshaphatbc/wedding-invitation-backend/internal/config"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/internal/database"
@@ -10,7 +12,9 @@ import (
 	seeds "github.com/jehoshaphatbc/wedding-invitation-backend/seeds"
 )
 
-func main() {
+var Handler http.Handler
+
+func init() {
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
@@ -19,10 +23,7 @@ func main() {
 	db := database.Connect(cfg)
 	seeds.Seed(db, cfg.SuperAdminName, cfg.SuperAdminEmail, cfg.SuperAdminPassword)
 
-	r := server.New(cfg, db)
-
-	fmt.Printf("Server starting on port %s\n", cfg.ServerPort)
-	if err := r.Run(":" + cfg.ServerPort); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
-	}
+	Handler = server.New(cfg, db)
 }
+
+func main() {}

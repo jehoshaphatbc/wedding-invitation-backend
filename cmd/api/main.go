@@ -16,7 +16,11 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	db := database.Connect(cfg)
+	db, err := database.Connect(cfg)
+	if err != nil {
+		log.Fatalf("Failed to connect database: %v", err)
+	}
+
 	seeds.Seed(db, cfg.SuperAdminName, cfg.SuperAdminEmail, cfg.SuperAdminPassword)
 
 	r := server.New(cfg, db)

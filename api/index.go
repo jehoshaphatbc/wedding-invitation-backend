@@ -6,9 +6,9 @@ import (
 	"sync"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jehoshaphatbc/wedding-invitation-backend/internal/config"
-	"github.com/jehoshaphatbc/wedding-invitation-backend/internal/database"
-	"github.com/jehoshaphatbc/wedding-invitation-backend/internal/server"
+	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/config"
+	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/database"
+	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/server"
 	seeds "github.com/jehoshaphatbc/wedding-invitation-backend/seeds"
 )
 

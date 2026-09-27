@@ -7,7 +7,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/jehoshaphatbc/wedding-invitation-backend/internal/models"
+	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/models"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/auth"
 )
 

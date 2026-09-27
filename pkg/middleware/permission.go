@@ -1,0 +1,111 @@
+package middleware
+
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+
+	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/repositories"
+	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/response"
+)
+
+func PermissionMiddleware(userRepo repositories.UserRepository, requiredPermissions ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := GetUserID(c)
+		if userID == uuid.Nil {
+			response.Unauthorized(c, "Unauthenticated.")
+			c.Abort()
+			return
+		}
+
+		user, err := userRepo.FindByID(userID)
+		if err != nil {
+			response.Unauthorized(c, "Unauthenticated.")
+			c.Abort()
+			return
+		}
+
+		for _, role := range user.Roles {
+			if role.Name == "super_admin" {
+				c.Next()
+				return
+			}
+		}
+
+		userPermissions := make(map[string]bool)
+		for _, role := range user.Roles {
+			for _, perm := range role.Permissions {
+				userPermissions[perm.Name] = true
+			}
+		}
+
+		for _, required := range requiredPermissions {
+			if !userPermissions[required] {
+				response.Forbidden(c, "You do not have permission to perform this action.")
+				c.Abort()
+				return
+			}
+		}
+
+		c.Next()
+	}
+}
+
+func OwnershipOrAdminMiddleware(userRepo repositories.UserRepository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := GetUserID(c)
+		if userID == uuid.Nil {
+			response.Unauthorized(c, "Unauthenticated.")
+			c.Abort()
+			return
+		}
+
+		user, err := userRepo.FindByID(userID)
+		if err != nil {
+			response.Unauthorized(c, "Unauthenticated.")
+			c.Abort()
+			return
+		}
+
+		isSuperAdmin := false
+		isAdmin := false
+
+		for _, role := range user.Roles {
+			if role.Name == "super_admin" {
+				isSuperAdmin = true
+				isAdmin = true
+			} else if role.Name == "admin" {
+				isAdmin = true
+			}
+		}
+
+		c.Set("is_super_admin", isSuperAdmin)
+		c.Set("is_admin", isAdmin)
+		c.Next()
+	}
+}
+
+func AdminOnly() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		isAdmin, exists := c.Get("is_admin")
+		if !exists || !isAdmin.(bool) {
+			response.Forbidden(c, "You do not have permission to perform this action.")
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+func SuperAdminOnly() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		isSuperAdmin, exists := c.Get("is_super_admin")
+		if !exists || !isSuperAdmin.(bool) {
+			response.Forbidden(c, "You do not have permission to perform this action. Super admin only.")
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}

@@ -29,6 +29,7 @@ func Connect(cfg *config.Config) (*gorm.DB, error) {
 		&models.ClientProfile{},
 		&models.Role{},
 		&models.Permission{},
+		&models.CompanySetting{},
 		&models.UserRole{},
 		&models.RolePermission{},
 		&models.RefreshToken{},

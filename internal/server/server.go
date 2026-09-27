@@ -33,14 +33,17 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	permissionRepo := repositories.NewPermissionRepository(db)
 	profileRepo := repositories.NewProfileRepository(db)
 	auditRepo := repositories.NewAuditLogRepository(db)
+	companySettingRepo := repositories.NewCompanySettingRepository(db)
 
 	authService := services.NewAuthService(userRepo, refreshTokenRepo, passwordResetRepo, emailVerificationRepo, roleRepo, profileRepo, auditRepo, jwtManager, cfg)
-	userService := services.NewUserService(userRepo, roleRepo, profileRepo, auditRepo)
+	userService := services.NewUserService(userRepo, roleRepo, profileRepo, auditRepo, refreshTokenRepo)
 	roleService := services.NewRoleService(roleRepo, permissionRepo, auditRepo)
+	companySettingService := services.NewCompanySettingService(companySettingRepo, auditRepo)
 
 	authHandler := handlers.NewAuthHandler(authService)
 	userHandler := handlers.NewUserHandler(userService)
 	roleHandler := handlers.NewRoleHandler(roleService)
+	companySettingHandler := handlers.NewCompanySettingHandler(companySettingService)
 
 	r := gin.Default()
 
@@ -66,6 +69,9 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	})
 
 	api := apiGroup(r)
+	r.Static("/uploads", "./uploads")
+
+	api.GET("/company-settings", companySettingHandler.Get)
 
 	authRateLimiter := middleware.NewRateLimiter(10, 1*time.Minute)
 	generalRateLimiter := middleware.NewRateLimiter(100, 1*time.Minute)
@@ -79,6 +85,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		authGroup.POST("/forgot-password", authHandler.ForgotPassword)
 		authGroup.POST("/reset-password", authHandler.ResetPassword)
 		authGroup.POST("/verify-email", authHandler.VerifyEmail)
+		authGroup.POST("/resend-verification", authHandler.ResendVerification)
 	}
 
 	protected := api.Group("")
@@ -91,6 +98,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 
 		protected.GET("/me", userHandler.GetProfile)
 		protected.PATCH("/me", userHandler.UpdateProfile)
+		protected.POST("/me/email", authHandler.ChangeEmail)
 	}
 
 	admin := api.Group("/admin")
@@ -99,11 +107,14 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	admin.Use(middleware.AdminOnly())
 	admin.Use(middleware.RateLimitMiddleware(generalRateLimiter))
 	{
+		admin.PUT("/company-settings", companySettingHandler.Update)
+
 		admin.GET("/users", userHandler.GetAllUsers)
 		admin.POST("/users", userHandler.CreateUser)
 		admin.GET("/users/:id", userHandler.GetUser)
 		admin.PATCH("/users/:id", userHandler.UpdateUser)
 		admin.DELETE("/users/:id", userHandler.DeleteUser)
+		admin.PATCH("/users/:id/password", middleware.SuperAdminOnly(), userHandler.AdminChangePassword)
 		admin.PUT("/users/:id/roles", userHandler.AssignRoles)
 		admin.GET("/stats", userHandler.GetStats)
 

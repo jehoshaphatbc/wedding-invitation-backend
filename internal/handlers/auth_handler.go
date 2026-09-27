@@ -29,13 +29,16 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	ip := middleware.GetClientIP(c)
 	userAgent := middleware.GetUserAgent(c)
 
-	result, err := h.authService.Register(req, ip, userAgent)
+	user, token, err := h.authService.Register(req, ip, userAgent)
 	if err != nil {
 		response.Conflict(c, err.Error())
 		return
 	}
 
-	response.Success(c, http.StatusCreated, "Registration successful.", result)
+	response.Success(c, http.StatusCreated, "Registration successful. Please check your email for verification.", gin.H{
+		"user":  user,
+		"token": token,
+	})
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -159,7 +162,44 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 
 	response.Success(c, http.StatusOK, "Password changed successfully. Please login again.", nil)
 }
+func (h *AuthHandler) ResendVerification(c *gin.Context) {
+	var req models.ResendVerificationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ValidationError(c, err.Error())
+		return
+	}
 
+	ip := middleware.GetClientIP(c)
+	userAgent := middleware.GetUserAgent(c)
+
+	token, err := h.authService.ResendVerificationEmail(req, ip, userAgent)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Verification email resent successfully.", gin.H{"token": token})
+}
+
+func (h *AuthHandler) ChangeEmail(c *gin.Context) {
+	var req models.ChangeEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ValidationError(c, err.Error())
+		return
+	}
+
+	userID := middleware.GetUserID(c)
+	ip := middleware.GetClientIP(c)
+	userAgent := middleware.GetUserAgent(c)
+
+	token, err := h.authService.ChangeEmail(userID, req, ip, userAgent)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Email changed successfully. Please verify your new email.", gin.H{"token": token})
+}
 func (h *AuthHandler) VerifyEmail(c *gin.Context) {
 	var req models.VerifyEmailRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

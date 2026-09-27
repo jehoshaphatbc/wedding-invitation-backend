@@ -38,7 +38,7 @@ func (r *roleRepository) FindByID(id uuid.UUID) (*models.Role, error) {
 
 func (r *roleRepository) FindByName(name string) (*models.Role, error) {
 	var role models.Role
-	err := r.db.Where("name = ?", name).First(&role).Error
+	err := r.db.Preload("Permissions").Where("name = ?", name).First(&role).Error
 	return &role, err
 }
 

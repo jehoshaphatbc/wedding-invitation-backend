@@ -3,6 +3,7 @@ package seeds
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -75,6 +76,7 @@ func Seed(db *gorm.DB, superAdminName, superAdminEmail, superAdminPassword strin
 	seedRoles(db)
 	seedRolePermissions(db)
 	seedSuperAdmin(db, superAdminName, superAdminEmail, superAdminPassword)
+	seedCompanySetting(db)
 }
 
 func SeedSuperAdminOnly(db *gorm.DB, superAdminName, superAdminEmail, superAdminPassword string) {
@@ -159,11 +161,13 @@ func seedSuperAdmin(db *gorm.DB, name, email, password string) {
 		return
 	}
 
+	now := time.Now()
 	user := &models.User{
-		Name:         name,
-		Email:        email,
-		PasswordHash: hashedPassword,
-		Status:       models.UserStatusActive,
+		Name:            name,
+		Email:           email,
+		PasswordHash:    hashedPassword,
+		Status:          models.UserStatusActive,
+		EmailVerifiedAt: &now,
 	}
 	db.Create(user)
 
@@ -177,4 +181,17 @@ func seedSuperAdmin(db *gorm.DB, name, email, password string) {
 	})
 
 	fmt.Printf("Super admin created: %s\n", email)
+}
+
+func seedCompanySetting(db *gorm.DB) {
+	var count int64
+	db.Model(&models.CompanySetting{}).Count(&count)
+	if count == 0 {
+		db.Create(&models.CompanySetting{
+			Name:        "Wedding Invitation App",
+			Address:     "Jakarta, Indonesia",
+			Description: "Platform untuk membuat undangan pernikahan digital yang elegan dan mudah digunakan.",
+		})
+		fmt.Println("Company setting seeded successfully")
+	}
 }

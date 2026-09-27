@@ -13,10 +13,11 @@ import (
 )
 
 type UserService struct {
-	userRepo    repositories.UserRepository
-	roleRepo    repositories.RoleRepository
-	profileRepo repositories.ProfileRepository
-	auditRepo   repositories.AuditLogRepository
+	userRepo         repositories.UserRepository
+	roleRepo         repositories.RoleRepository
+	profileRepo      repositories.ProfileRepository
+	auditRepo        repositories.AuditLogRepository
+	refreshTokenRepo repositories.RefreshTokenRepository
 }
 
 func NewUserService(
@@ -24,12 +25,14 @@ func NewUserService(
 	roleRepo repositories.RoleRepository,
 	profileRepo repositories.ProfileRepository,
 	auditRepo repositories.AuditLogRepository,
+	refreshTokenRepo repositories.RefreshTokenRepository,
 ) *UserService {
 	return &UserService{
-		userRepo:    userRepo,
-		roleRepo:    roleRepo,
-		profileRepo: profileRepo,
-		auditRepo:   auditRepo,
+		userRepo:         userRepo,
+		roleRepo:         roleRepo,
+		profileRepo:      profileRepo,
+		auditRepo:        auditRepo,
+		refreshTokenRepo: refreshTokenRepo,
 	}
 }
 
@@ -146,28 +149,39 @@ func (s *UserService) UpdateUser(id uuid.UUID, req models.UpdateUserRequest, ip,
 	return s.userRepo.FindByID(id)
 }
 
+func (s *UserService) AdminChangePassword(id uuid.UUID, req models.AdminChangePasswordRequest, ip, userAgent string) error {
+	user, err := s.userRepo.FindByID(id)
+	if err != nil {
+		return errors.New("user not found")
+	}
+
+	hashedPassword, err := auth.HashPassword(req.NewPassword)
+	if err != nil {
+		return err
+	}
+
+	user.PasswordHash = hashedPassword
+	if err := s.userRepo.Update(user); err != nil {
+		return err
+	}
+
+	s.refreshTokenRepo.RevokeAllByUserID(id)
+
+	s.auditLog(nil, "user.password_forced_changed", "users", &user.ID, ip, userAgent)
+	return nil
+}
+
 func (s *UserService) DeleteUser(id uuid.UUID, ip, userAgent string) error {
 	user, err := s.userRepo.FindByID(id)
 	if err != nil {
 		return errors.New("user not found")
 	}
 
-	if user.Status == models.UserStatusSuspend {
-		user.Status = models.UserStatusInactive
-	} else {
-		user.Status = models.UserStatusSuspend
-	}
-
-	if err := s.userRepo.Update(user); err != nil {
+	if err := s.userRepo.Delete(id); err != nil {
 		return err
 	}
 
-	action := "user.suspended"
-	if user.Status == models.UserStatusInactive {
-		action = "user.deactivated"
-	}
-
-	s.auditLog(nil, action, "users", &user.ID, ip, userAgent)
+	s.auditLog(nil, "user.deleted", "users", &user.ID, ip, userAgent)
 	return nil
 }
 

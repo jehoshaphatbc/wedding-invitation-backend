@@ -66,15 +66,20 @@ func OwnershipOrAdminMiddleware(userRepo repositories.UserRepository) gin.Handle
 			return
 		}
 
+		isSuperAdmin := false
+		isAdmin := false
+
 		for _, role := range user.Roles {
-			if role.Name == "super_admin" || role.Name == "admin" {
-				c.Set("is_admin", true)
-				c.Next()
-				return
+			if role.Name == "super_admin" {
+				isSuperAdmin = true
+				isAdmin = true
+			} else if role.Name == "admin" {
+				isAdmin = true
 			}
 		}
 
-		c.Set("is_admin", false)
+		c.Set("is_super_admin", isSuperAdmin)
+		c.Set("is_admin", isAdmin)
 		c.Next()
 	}
 }
@@ -84,6 +89,19 @@ func AdminOnly() gin.HandlerFunc {
 		isAdmin, exists := c.Get("is_admin")
 		if !exists || !isAdmin.(bool) {
 			response.Forbidden(c, "You do not have permission to perform this action.")
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+func SuperAdminOnly() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		isSuperAdmin, exists := c.Get("is_super_admin")
+		if !exists || !isSuperAdmin.(bool) {
+			response.Forbidden(c, "You do not have permission to perform this action. Super admin only.")
 			c.Abort()
 			return
 		}

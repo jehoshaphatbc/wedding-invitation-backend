@@ -146,6 +146,30 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	response.Success(c, http.StatusOK, "User updated successfully.", models.ToUserResponse(user))
 }
 
+func (h *UserHandler) AdminChangePassword(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid user ID.")
+		return
+	}
+
+	var req models.AdminChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ValidationError(c, err.Error())
+		return
+	}
+
+	ip := middleware.GetClientIP(c)
+	userAgent := middleware.GetUserAgent(c)
+
+	if err := h.userService.AdminChangePassword(id, req, ip, userAgent); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	response.Success(c, http.StatusOK, "User password updated successfully.", nil)
+}
+
 func (h *UserHandler) DeleteUser(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -161,7 +185,7 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, http.StatusOK, "User status updated successfully.", nil)
+	response.Success(c, http.StatusOK, "User deleted successfully.", nil)
 }
 
 func (h *UserHandler) AssignRoles(c *gin.Context) {

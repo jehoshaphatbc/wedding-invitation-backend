@@ -50,15 +50,15 @@ func NewAuthService(
 	}
 }
 
-func (s *AuthService) Register(req models.RegisterRequest, ip, userAgent string) (*models.AuthResponse, error) {
+func (s *AuthService) Register(req models.RegisterRequest, ip, userAgent string) (*models.UserResponse, string, error) {
 	_, err := s.userRepo.FindByEmail(strings.ToLower(req.Email))
 	if err == nil {
-		return nil, errors.New("email already registered")
+		return nil, "", errors.New("email already registered")
 	}
 
 	hashedPassword, err := auth.HashPassword(req.Password)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	phone := req.Phone
@@ -67,11 +67,11 @@ func (s *AuthService) Register(req models.RegisterRequest, ip, userAgent string)
 		Email:        strings.ToLower(req.Email),
 		Phone:        &phone,
 		PasswordHash: hashedPassword,
-		Status:       models.UserStatusActive,
+		Status:       models.UserStatusPending, // Changed from Active to Pending
 	}
 
 	if err := s.userRepo.Create(user); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	customerRole, err := s.roleRepo.FindByName("customer")
@@ -84,9 +84,15 @@ func (s *AuthService) Register(req models.RegisterRequest, ip, userAgent string)
 		UserID: user.ID,
 	})
 
+	token, err := s.generateAndSaveVerificationToken(user.ID, user.Email)
+	if err != nil {
+		return nil, "", err
+	}
+
 	s.auditLog(&user.ID, "user.created", "users", &user.ID, ip, userAgent)
 
-	return s.generateTokenResponse(user, ip, userAgent)
+	resp := models.ToUserResponse(user)
+	return &resp, token, nil
 }
 
 func (s *AuthService) Login(req models.LoginRequest, ip, userAgent string) (*models.AuthResponse, error) {
@@ -98,8 +104,8 @@ func (s *AuthService) Login(req models.LoginRequest, ip, userAgent string) (*mod
 		return nil, err
 	}
 
-	if user.Status != models.UserStatusActive {
-		return nil, errors.New("account is not active")
+	if user.Status != models.UserStatusActive && user.Status != models.UserStatusPending {
+		return nil, errors.New("account is suspended or inactive")
 	}
 
 	if !auth.CheckPassword(req.Password, user.PasswordHash) {
@@ -131,8 +137,8 @@ func (s *AuthService) RefreshToken(req models.RefreshTokenRequest, ip, userAgent
 		return nil, errors.New("user not found")
 	}
 
-	if user.Status != models.UserStatusActive {
-		return nil, errors.New("account is not active")
+	if user.Status != models.UserStatusActive && user.Status != models.UserStatusPending {
+		return nil, errors.New("account is suspended or inactive")
 	}
 
 	s.refreshTokenRepo.Revoke(refreshToken.ID)
@@ -313,7 +319,79 @@ func (s *AuthService) generateTokenResponse(user *models.User, ip, userAgent str
 		ExpiresIn:    s.cfg.JWTAccessExpiry * 60,
 	}, nil
 }
+func (s *AuthService) generateAndSaveVerificationToken(userID uuid.UUID, email string) (string, error) {
+	token, err := auth.GenerateRandomToken()
+	if err != nil {
+		return "", err
+	}
 
+	tokenHash := auth.HashToken(token)
+	verificationToken := &models.EmailVerificationToken{
+		UserID:    userID,
+		TokenHash: tokenHash,
+		ExpiresAt: time.Now().Add(24 * time.Hour),
+	}
+
+	if err := s.emailVerificationRepo.Create(verificationToken); err != nil {
+		return "", err
+	}
+
+	return token, nil
+}
+
+func (s *AuthService) ResendVerificationEmail(req models.ResendVerificationRequest, ip, userAgent string) (string, error) {
+	user, err := s.userRepo.FindByEmail(strings.ToLower(req.Email))
+	if err != nil {
+		return "", errors.New("user not found")
+	}
+
+	if user.EmailVerifiedAt != nil {
+		return "", errors.New("email is already verified")
+	}
+
+	token, err := s.generateAndSaveVerificationToken(user.ID, user.Email)
+	if err != nil {
+		return "", err
+	}
+
+	s.auditLog(&user.ID, "email.verification_resent", "users", &user.ID, ip, userAgent)
+	return token, nil
+}
+
+func (s *AuthService) ChangeEmail(userID uuid.UUID, req models.ChangeEmailRequest, ip, userAgent string) (string, error) {
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return "", errors.New("user not found")
+	}
+
+	newEmail := strings.ToLower(req.NewEmail)
+	if user.Email == newEmail {
+		return "", errors.New("new email must be different")
+	}
+
+	_, err = s.userRepo.FindByEmail(newEmail)
+	if err == nil {
+		return "", errors.New("email already in use")
+	}
+
+	user.Email = newEmail
+	user.Status = models.UserStatusPending
+	user.EmailVerifiedAt = nil
+
+	if err := s.userRepo.Update(user); err != nil {
+		return "", err
+	}
+
+	s.refreshTokenRepo.RevokeAllByUserID(user.ID)
+
+	token, err := s.generateAndSaveVerificationToken(user.ID, user.Email)
+	if err != nil {
+		return "", err
+	}
+
+	s.auditLog(&user.ID, "email.changed", "users", &user.ID, ip, userAgent)
+	return token, nil
+}
 func (s *AuthService) auditLog(userID *uuid.UUID, action, resourceType string, resourceID *uuid.UUID, ip, userAgent string) {
 	s.auditRepo.Create(&models.AuditLog{
 		UserID:       userID,

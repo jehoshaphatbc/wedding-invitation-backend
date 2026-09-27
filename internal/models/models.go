@@ -176,3 +176,22 @@ func (a *AuditLog) BeforeCreate(tx *gorm.DB) error {
 	}
 	return nil
 }
+
+type CompanySetting struct {
+	ID            uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
+	Name          string    `gorm:"type:varchar(255);not null" json:"name"`
+	Address       string    `gorm:"type:text" json:"address"`
+	Description   string    `gorm:"type:text" json:"description"`
+	FaviconURL    string    `gorm:"type:varchar(255)" json:"favicon_url"`
+	LogoLongURL   string    `gorm:"type:varchar(255)" json:"logo_long_url"`
+	LogoSquareURL string    `gorm:"type:varchar(255)" json:"logo_square_url"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+func (c *CompanySetting) BeforeCreate(tx *gorm.DB) error {
+	if c.ID == uuid.Nil {
+		c.ID = uuid.New()
+	}
+	return nil
+}

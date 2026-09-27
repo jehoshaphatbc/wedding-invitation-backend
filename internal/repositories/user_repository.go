@@ -35,23 +35,13 @@ func (r *userRepository) Create(user *models.User) error {
 
 func (r *userRepository) FindByID(id uuid.UUID) (*models.User, error) {
 	var user models.User
-	err := r.db.Where("id = ?", id).First(&user).Error
-	if err != nil {
-		return &user, err
-	}
-	roles, _ := r.getUserRoles(user.ID)
-	user.Roles = roles
+	err := r.db.Preload("Roles.Permissions").Where("id = ?", id).First(&user).Error
 	return &user, err
 }
 
 func (r *userRepository) FindByEmail(email string) (*models.User, error) {
 	var user models.User
-	err := r.db.Where("email = ?", email).First(&user).Error
-	if err != nil {
-		return &user, err
-	}
-	roles, _ := r.getUserRoles(user.ID)
-	user.Roles = roles
+	err := r.db.Preload("Roles.Permissions").Where("email = ?", email).First(&user).Error
 	return &user, err
 }
 
@@ -83,10 +73,8 @@ func (r *userRepository) FindAll(page, perPage int, search, status, role, sort, 
 	}
 
 	offset := (page - 1) * perPage
-	err := query.Offset(offset).Limit(perPage).Order(sort + " " + order).Find(&users).Error
-	for i := range users {
-		users[i].Roles, _ = r.getUserRoles(users[i].ID)
-	}
+	err := query.Preload("Roles.Permissions").Offset(offset).Limit(perPage).Order(sort + " " + order).Find(&users).Error
+
 	return users, total, err
 }
 
@@ -118,17 +106,6 @@ func (r *userRepository) AssignRoles(userID uuid.UUID, roleIDs []uuid.UUID) erro
 		tx.Where("user_id = ?", userID).Delete(&models.UserRole{})
 		return tx.Create(&userRoles).Error
 	})
-}
-
-func (r *userRepository) getUserRoles(userID uuid.UUID) ([]models.Role, error) {
-	var roleIDs []uuid.UUID
-	err := r.db.Table("user_roles").Where("user_id = ?", userID).Pluck("role_id", &roleIDs).Error
-	if err != nil || len(roleIDs) == 0 {
-		return nil, err
-	}
-	var roles []models.Role
-	err = r.db.Preload("Permissions").Where("id IN ?", roleIDs).Find(&roles).Error
-	return roles, err
 }
 
 func (r *userRepository) UpdateLastLogin(userID uuid.UUID) error {

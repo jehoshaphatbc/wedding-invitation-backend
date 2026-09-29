@@ -104,6 +104,11 @@ func (h *RoleHandler) DeleteRole(c *gin.Context) {
 		return
 	}
 
+	if !h.isSuperAdmin(c) {
+		response.Forbidden(c, "Only superadmin can delete roles.")
+		return
+	}
+
 	ip := middleware.GetClientIP(c)
 	userAgent := middleware.GetUserAgent(c)
 
@@ -179,6 +184,11 @@ func (h *RoleHandler) RestoreRole(c *gin.Context) {
 		return
 	}
 
+	if !h.isSuperAdmin(c) {
+		response.Forbidden(c, "Only superadmin can restore roles.")
+		return
+	}
+
 	ip := middleware.GetClientIP(c)
 	userAgent := middleware.GetUserAgent(c)
 
@@ -197,6 +207,11 @@ func (h *RoleHandler) ForceDeleteRole(c *gin.Context) {
 		return
 	}
 
+	if !h.isSuperAdmin(c) {
+		response.Forbidden(c, "Only superadmin can permanently delete roles.")
+		return
+	}
+
 	ip := middleware.GetClientIP(c)
 	userAgent := middleware.GetUserAgent(c)
 
@@ -206,4 +221,9 @@ func (h *RoleHandler) ForceDeleteRole(c *gin.Context) {
 	}
 
 	response.Success(c, http.StatusOK, "Role permanently deleted.", nil)
+}
+
+func (h *RoleHandler) isSuperAdmin(c *gin.Context) bool {
+	isSuperAdmin, exists := c.Get("is_super_admin")
+	return exists && isSuperAdmin.(bool)
 }

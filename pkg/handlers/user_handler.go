@@ -177,6 +177,11 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 		return
 	}
 
+	if !h.canAdminDeleteUser(c, id) {
+		response.Forbidden(c, "You do not have permission to delete this user.")
+		return
+	}
+
 	ip := middleware.GetClientIP(c)
 	userAgent := middleware.GetUserAgent(c)
 
@@ -259,6 +264,11 @@ func (h *UserHandler) RestoreUser(c *gin.Context) {
 		return
 	}
 
+	if !h.canAdminDeleteUser(c, id) {
+		response.Forbidden(c, "You do not have permission to restore this user.")
+		return
+	}
+
 	ip := middleware.GetClientIP(c)
 	userAgent := middleware.GetUserAgent(c)
 
@@ -277,6 +287,11 @@ func (h *UserHandler) ForceDeleteUser(c *gin.Context) {
 		return
 	}
 
+	if !h.canAdminDeleteUser(c, id) {
+		response.Forbidden(c, "You do not have permission to permanently delete this user.")
+		return
+	}
+
 	ip := middleware.GetClientIP(c)
 	userAgent := middleware.GetUserAgent(c)
 
@@ -286,4 +301,23 @@ func (h *UserHandler) ForceDeleteUser(c *gin.Context) {
 	}
 
 	response.Success(c, http.StatusOK, "User permanently deleted.", nil)
+}
+
+func (h *UserHandler) canAdminDeleteUser(c *gin.Context, targetUserID uuid.UUID) bool {
+	isSuperAdmin, exists := c.Get("is_super_admin")
+	if exists && isSuperAdmin.(bool) {
+		return true
+	}
+
+	targetUser, err := h.userService.GetUserByID(targetUserID)
+	if err != nil {
+		return true // Let the service handle "not found"
+	}
+
+	for _, role := range targetUser.Roles {
+		if role.Name == "admin" || role.Name == "super_admin" {
+			return false
+		}
+	}
+	return true
 }

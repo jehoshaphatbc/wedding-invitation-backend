@@ -57,11 +57,11 @@ func (h *CompanySettingHandler) Update(c *gin.Context) {
 				return nil
 			}
 			defer file.Close()
-			
+
 			ext := filepath.Ext(fileHeader.Filename)
 			uuidStr := uuid.New().String()
 			filename := fmt.Sprintf("uploads/company/%s-%s%s", uuidStr, field, ext)
-			
+
 			res, err := h.blobService.Upload(c.Request.Context(), filename, file, fileHeader.Header.Get("Content-Type"))
 			if err == nil {
 				return &res.URL

@@ -9,20 +9,20 @@ import (
 )
 
 type Config struct {
-	Environment  string
-	DatabaseURL  string
-	DBHost       string
-	DBPort       string
-	DBUser       string
-	DBPassword   string
-	DBName       string
-	DBSSLMode    string
-	DBTimezone   string
+	Environment string
+	DatabaseURL string
+	DBHost      string
+	DBPort      string
+	DBUser      string
+	DBPassword  string
+	DBName      string
+	DBSSLMode   string
+	DBTimezone  string
 
-	JWTSecret          string
-	JWTAccessExpiry    int
-	JWTRefreshExpiry   int
-	JWTIssuer          string
+	JWTSecret        string
+	JWTAccessExpiry  int
+	JWTRefreshExpiry int
+	JWTIssuer        string
 
 	SuperAdminName     string
 	SuperAdminEmail    string
@@ -32,7 +32,7 @@ type Config struct {
 	GinMode    string
 
 	FRONTEND_URL string
-	
+
 	BlobReadWriteToken string
 	MaxUploadSize      int64
 }
@@ -42,25 +42,25 @@ func Load() (*Config, error) {
 
 	accessExpiry, _ := strconv.Atoi(getEnv("JWT_ACCESS_EXPIRY_MINUTES", "15"))
 	refreshExpiry, _ := strconv.Atoi(getEnv("JWT_REFRESH_EXPIRY_DAYS", "30"))
-	
+
 	maxUploadSizeStr := getEnv("MAX_UPLOAD_SIZE", "10485760") // Default 10MB
 	maxUploadSize, _ := strconv.ParseInt(maxUploadSizeStr, 10, 64)
 
 	cfg := &Config{
-		Environment:  getEnv("ENVIRONMENT", "development"),
-		DatabaseURL:  getEnv("DATABASE_URL", ""),
-		DBHost:       getEnv("DB_HOST", "localhost"),
-		DBPort:     getEnv("DB_PORT", "5432"),
-		DBUser:     getEnv("DB_USER", "postgres"),
-		DBPassword: getEnv("DB_PASSWORD", "postgres"),
-		DBName:     getEnv("DB_NAME", "wedding_invitation"),
-		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
-		DBTimezone: getEnv("DB_TIMEZONE", "Asia/Jakarta"),
+		Environment: getEnv("ENVIRONMENT", "development"),
+		DatabaseURL: getEnv("DATABASE_URL", ""),
+		DBHost:      getEnv("DB_HOST", "localhost"),
+		DBPort:      getEnv("DB_PORT", "5432"),
+		DBUser:      getEnv("DB_USER", "postgres"),
+		DBPassword:  getEnv("DB_PASSWORD", "postgres"),
+		DBName:      getEnv("DB_NAME", "wedding_invitation"),
+		DBSSLMode:   getEnv("DB_SSLMODE", "disable"),
+		DBTimezone:  getEnv("DB_TIMEZONE", "Asia/Jakarta"),
 
-		JWTSecret:          getEnv("JWT_SECRET", "change-this-in-production"),
-		JWTAccessExpiry:    accessExpiry,
-		JWTRefreshExpiry:   refreshExpiry,
-		JWTIssuer:          "wedding-invitation-backend",
+		JWTSecret:        getEnv("JWT_SECRET", "change-this-in-production"),
+		JWTAccessExpiry:  accessExpiry,
+		JWTRefreshExpiry: refreshExpiry,
+		JWTIssuer:        "wedding-invitation-backend",
 
 		SuperAdminName:     getEnv("SUPER_ADMIN_NAME", "Super Admin"),
 		SuperAdminEmail:    getEnv("SUPER_ADMIN_EMAIL", "admin@wedding.com"),
@@ -70,7 +70,7 @@ func Load() (*Config, error) {
 		GinMode:    getEnv("GIN_MODE", "debug"),
 
 		FRONTEND_URL: getEnv("FRONTEND_URL", "http://localhost:3000"),
-		
+
 		BlobReadWriteToken: getEnv("BLOB_READ_WRITE_TOKEN", ""),
 		MaxUploadSize:      maxUploadSize,
 	}

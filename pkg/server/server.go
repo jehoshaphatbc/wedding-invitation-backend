@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/auth"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/config"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/dashboard"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/handlers"
@@ -13,7 +14,6 @@ import (
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/repositories"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/services"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/services/blob"
-	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/auth"
 )
 
 func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
@@ -102,7 +102,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		protected.GET("/me", userHandler.GetProfile)
 		protected.PATCH("/me", userHandler.UpdateProfile)
 		protected.POST("/me/email", authHandler.ChangeEmail)
-		
+
 		protected.POST("/upload", uploadHandler.UploadFile)
 	}
 

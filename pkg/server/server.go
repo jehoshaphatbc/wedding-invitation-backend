@@ -115,28 +115,28 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		admin.PUT("/company-settings", companySettingHandler.Update)
 
 		admin.GET("/users", userHandler.GetAllUsers)
-		admin.GET("/users/trash", userHandler.GetTrashedUsers)
+		admin.GET("/users/trash", middleware.SuperAdminOnly(), userHandler.GetTrashedUsers)
 
 		admin.POST("/users", userHandler.CreateUser)
 		admin.GET("/users/:id", userHandler.GetUser)
 		admin.PATCH("/users/:id", userHandler.UpdateUser)
 		admin.DELETE("/users/:id", userHandler.DeleteUser)
-		admin.POST("/users/:id/restore", userHandler.RestoreUser)
-		admin.DELETE("/users/:id/force", userHandler.ForceDeleteUser)
+		admin.POST("/users/:id/restore", middleware.SuperAdminOnly(), userHandler.RestoreUser)
+		admin.DELETE("/users/:id/force", middleware.SuperAdminOnly(), userHandler.ForceDeleteUser)
 
 		admin.PATCH("/users/:id/password", middleware.SuperAdminOnly(), userHandler.AdminChangePassword)
 		admin.PUT("/users/:id/roles", userHandler.AssignRoles)
 		admin.GET("/stats", userHandler.GetStats)
 
 		admin.GET("/roles", roleHandler.GetAllRoles)
-		admin.GET("/roles/trash", roleHandler.GetTrashedRoles)
+		admin.GET("/roles/trash", middleware.SuperAdminOnly(), roleHandler.GetTrashedRoles)
 
 		admin.POST("/roles", roleHandler.CreateRole)
 		admin.GET("/roles/:id", roleHandler.GetRole)
 		admin.PATCH("/roles/:id", roleHandler.UpdateRole)
 		admin.DELETE("/roles/:id", roleHandler.DeleteRole)
-		admin.POST("/roles/:id/restore", roleHandler.RestoreRole)
-		admin.DELETE("/roles/:id/force", roleHandler.ForceDeleteRole)
+		admin.POST("/roles/:id/restore", middleware.SuperAdminOnly(), roleHandler.RestoreRole)
+		admin.DELETE("/roles/:id/force", middleware.SuperAdminOnly(), roleHandler.ForceDeleteRole)
 
 		admin.PUT("/roles/:id/permissions", roleHandler.AssignPermissions)
 

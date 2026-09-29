@@ -9,8 +9,8 @@ import (
 
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/middleware"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/models"
-	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/services"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/response"
+	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/services"
 )
 
 type UserHandler struct {
@@ -311,13 +311,17 @@ func (h *UserHandler) canAdminDeleteUser(c *gin.Context, targetUserID uuid.UUID)
 
 	targetUser, err := h.userService.GetUserByID(targetUserID)
 	if err != nil {
-		return true // Let the service handle "not found"
+		return false // Let the service handle "not found"
 	}
 
+	isCustomer := false
 	for _, role := range targetUser.Roles {
 		if role.Name == "admin" || role.Name == "super_admin" {
 			return false
 		}
+		if role.Name == "customer" {
+			isCustomer = true
+		}
 	}
-	return true
+	return isCustomer
 }

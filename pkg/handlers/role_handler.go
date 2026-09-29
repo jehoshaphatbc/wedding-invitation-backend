@@ -10,8 +10,8 @@ import (
 
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/middleware"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/models"
-	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/services"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/response"
+	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/services"
 )
 
 type RoleHandler struct {

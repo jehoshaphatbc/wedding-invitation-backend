@@ -62,7 +62,7 @@ func (h *CompanySettingHandler) Update(c *gin.Context) {
 			uuidStr := uuid.New().String()
 			filename := fmt.Sprintf("uploads/company/%s-%s%s", uuidStr, field, ext)
 
-			res, err := h.blobService.Upload(c.Request.Context(), filename, file, fileHeader.Header.Get("Content-Type"))
+			res, err := h.blobService.Upload(c.Request.Context(), filename, file, fileHeader.Size, fileHeader.Header.Get("Content-Type"))
 			if err == nil {
 				return &res.URL
 			}

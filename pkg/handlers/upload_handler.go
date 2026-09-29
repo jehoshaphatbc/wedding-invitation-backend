@@ -76,7 +76,7 @@ func (h *UploadHandler) UploadFile(c *gin.Context) {
 	filename := fmt.Sprintf("uploads/%s/%s-%s", entity, uuidStr, filepath.Base(fileHeader.Filename))
 	contentType := fileHeader.Header.Get("Content-Type")
 
-	res, err := h.blobService.Upload(c.Request.Context(), filename, file, contentType)
+	res, err := h.blobService.Upload(c.Request.Context(), filename, file, fileHeader.Size, contentType)
 	if err != nil {
 		response.InternalServerError(c, "Failed to upload file to storage")
 		return

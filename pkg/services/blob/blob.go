@@ -32,22 +32,28 @@ type PutBlobResult struct {
 	ContentDisposition string `json:"contentDisposition"`
 }
 
-func (s *BlobService) Upload(ctx context.Context, pathname string, file multipart.File, contentType string) (*PutBlobResult, error) {
+func (s *BlobService) Upload(ctx context.Context, pathname string, file multipart.File, size int64, contentType string) (*PutBlobResult, error) {
 	if s.token == "" {
 		return nil, fmt.Errorf("BLOB_READ_WRITE_TOKEN is not configured")
 	}
 
-	apiURL := fmt.Sprintf("https://blob.vercel-storage.com/?pathname=%s", url.QueryEscape(pathname))
+	apiURL := fmt.Sprintf("https://vercel.com/api/blob?pathname=%s", url.QueryEscape(pathname))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, apiURL, file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create upload request: %w", err)
 	}
 
+	if size > 0 {
+		req.ContentLength = size
+	}
+
 	req.Header.Set("Authorization", "Bearer "+s.token)
 	req.Header.Set("x-api-version", "7")
+	req.Header.Set("x-vercel-blob-access", "public")
+	req.Header.Set("x-add-random-suffix", "0")
 	if contentType != "" {
-		req.Header.Set("x-vercel-content-type", contentType)
+		req.Header.Set("x-content-type", contentType)
 	}
 
 	client := &http.Client{}
@@ -79,7 +85,7 @@ func (s *BlobService) Delete(ctx context.Context, urls []string) error {
 		return nil
 	}
 
-	apiURL := "https://blob.vercel-storage.com/delete"
+	apiURL := "https://vercel.com/api/blob/delete"
 
 	payload := map[string][]string{
 		"urls": urls,

@@ -11,7 +11,7 @@ type RoleRepository interface {
 	Create(role *models.Role) error
 	FindByID(id uuid.UUID) (*models.Role, error)
 	FindByName(name string) (*models.Role, error)
-	FindAll() ([]models.Role, error)
+	FindAll(page, perPage int, search, sort, order string) ([]models.Role, int64, error)
 	Update(role *models.Role) error
 	Delete(id uuid.UUID) error
 	FindTrashedAll(page, perPage int, search, sort, order string) ([]models.Role, int64, error)
@@ -45,10 +45,29 @@ func (r *roleRepository) FindByName(name string) (*models.Role, error) {
 	return &role, err
 }
 
-func (r *roleRepository) FindAll() ([]models.Role, error) {
+func (r *roleRepository) FindAll(page, perPage int, search, sort, order string) ([]models.Role, int64, error) {
 	var roles []models.Role
-	err := r.db.Preload("Permissions").Order("created_at ASC").Find(&roles).Error
-	return roles, err
+	var total int64
+
+	query := r.db.Model(&models.Role{})
+
+	if search != "" {
+		query = query.Where("name ILIKE ? OR display_name ILIKE ?", "%"+search+"%", "%"+search+"%")
+	}
+
+	query.Count(&total)
+
+	if sort == "" {
+		sort = "created_at"
+	}
+	if order == "" {
+		order = "desc"
+	}
+
+	offset := (page - 1) * perPage
+	err := query.Preload("Permissions").Offset(offset).Limit(perPage).Order(sort + " " + order).Find(&roles).Error
+
+	return roles, total, err
 }
 
 func (r *roleRepository) Update(role *models.Role) error {

@@ -23,7 +23,13 @@ func NewRoleHandler(roleService *services.RoleService) *RoleHandler {
 }
 
 func (h *RoleHandler) GetAllRoles(c *gin.Context) {
-	roles, err := h.roleService.GetAllRoles()
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "20"))
+	search := c.Query("search")
+	sort := c.Query("sort")
+	order := c.Query("order")
+
+	roles, total, err := h.roleService.GetAllRoles(page, perPage, search, sort, order)
 	if err != nil {
 		response.InternalServerError(c, "Failed to retrieve roles.")
 		return
@@ -34,7 +40,13 @@ func (h *RoleHandler) GetAllRoles(c *gin.Context) {
 		roleResponses = append(roleResponses, models.ToRoleResponse(&r))
 	}
 
-	response.Success(c, http.StatusOK, "Roles retrieved successfully.", roleResponses)
+	meta := gin.H{
+		"page":     page,
+		"per_page": perPage,
+		"total":    total,
+	}
+
+	response.SuccessWithMeta(c, http.StatusOK, "Roles retrieved successfully.", roleResponses, meta)
 }
 
 func (h *RoleHandler) GetRole(c *gin.Context) {
@@ -226,4 +238,92 @@ func (h *RoleHandler) ForceDeleteRole(c *gin.Context) {
 func (h *RoleHandler) isSuperAdmin(c *gin.Context) bool {
 	isSuperAdmin, exists := c.Get("is_super_admin")
 	return exists && isSuperAdmin.(bool)
+}
+
+type RoleBulkRequest struct {
+	IDs []string `json:"ids" binding:"required"`
+}
+
+func (h *RoleHandler) BulkDeleteRoles(c *gin.Context) {
+	var req RoleBulkRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request body.")
+		return
+	}
+
+	if !h.isSuperAdmin(c) {
+		response.Forbidden(c, "Only superadmin can delete roles.")
+		return
+	}
+
+	ip := middleware.GetClientIP(c)
+	userAgent := middleware.GetUserAgent(c)
+	successCount := 0
+
+	for _, idStr := range req.IDs {
+		id, err := uuid.Parse(idStr)
+		if err == nil {
+			if h.roleService.DeleteRole(id, ip, userAgent) == nil {
+				successCount++
+			}
+		}
+	}
+
+	response.Success(c, http.StatusOK, "Bulk delete completed.", gin.H{"success_count": successCount})
+}
+
+func (h *RoleHandler) BulkRestoreRoles(c *gin.Context) {
+	var req RoleBulkRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request body.")
+		return
+	}
+
+	if !h.isSuperAdmin(c) {
+		response.Forbidden(c, "Only superadmin can restore roles.")
+		return
+	}
+
+	ip := middleware.GetClientIP(c)
+	userAgent := middleware.GetUserAgent(c)
+	successCount := 0
+
+	for _, idStr := range req.IDs {
+		id, err := uuid.Parse(idStr)
+		if err == nil {
+			if h.roleService.RestoreRole(id, ip, userAgent) == nil {
+				successCount++
+			}
+		}
+	}
+
+	response.Success(c, http.StatusOK, "Bulk restore completed.", gin.H{"success_count": successCount})
+}
+
+func (h *RoleHandler) BulkForceDeleteRoles(c *gin.Context) {
+	var req RoleBulkRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request body.")
+		return
+	}
+
+	if !h.isSuperAdmin(c) {
+		response.Forbidden(c, "Only superadmin can permanently delete roles.")
+		return
+	}
+
+	ip := middleware.GetClientIP(c)
+	userAgent := middleware.GetUserAgent(c)
+	successCount := 0
+
+	for _, idStr := range req.IDs {
+		id, err := uuid.Parse(idStr)
+		if err == nil {
+			if h.roleService.ForceDeleteRole(id, ip, userAgent) == nil {
+				successCount++
+			}
+		}
+	}
+
+	response.Success(c, http.StatusOK, "Bulk force delete completed.", gin.H{"success_count": successCount})
 }

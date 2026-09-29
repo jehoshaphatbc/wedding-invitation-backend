@@ -311,17 +311,130 @@ func (h *UserHandler) canAdminDeleteUser(c *gin.Context, targetUserID uuid.UUID)
 
 	targetUser, err := h.userService.GetUserByID(targetUserID)
 	if err != nil {
-		return false // Let the service handle "not found"
+		return true // Let the service handle "not found"
 	}
 
-	isCustomer := false
 	for _, role := range targetUser.Roles {
 		if role.Name == "admin" || role.Name == "super_admin" {
 			return false
 		}
-		if role.Name == "customer" {
-			isCustomer = true
+	}
+	return true
+}
+
+type BulkRequest struct {
+	IDs []string `json:"ids" binding:"required"`
+}
+
+type BulkStatusRequest struct {
+	IDs    []string `json:"ids" binding:"required"`
+	Status string   `json:"status" binding:"required"`
+}
+
+func (h *UserHandler) BulkDeleteUsers(c *gin.Context) {
+	var req BulkRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request body.")
+		return
+	}
+
+	ip := middleware.GetClientIP(c)
+	userAgent := middleware.GetUserAgent(c)
+	successCount := 0
+
+	for _, idStr := range req.IDs {
+		id, err := uuid.Parse(idStr)
+		if err == nil {
+			if h.canAdminDeleteUser(c, id) {
+				if h.userService.DeleteUser(id, ip, userAgent) == nil {
+					successCount++
+				}
+			}
 		}
 	}
-	return isCustomer
+
+	response.Success(c, http.StatusOK, "Bulk delete completed.", gin.H{"success_count": successCount})
+}
+
+func (h *UserHandler) BulkRestoreUsers(c *gin.Context) {
+	var req BulkRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request body.")
+		return
+	}
+
+	ip := middleware.GetClientIP(c)
+	userAgent := middleware.GetUserAgent(c)
+	successCount := 0
+
+	for _, idStr := range req.IDs {
+		id, err := uuid.Parse(idStr)
+		if err == nil {
+			if h.canAdminDeleteUser(c, id) {
+				if h.userService.RestoreUser(id, ip, userAgent) == nil {
+					successCount++
+				}
+			}
+		}
+	}
+
+	response.Success(c, http.StatusOK, "Bulk restore completed.", gin.H{"success_count": successCount})
+}
+
+func (h *UserHandler) BulkForceDeleteUsers(c *gin.Context) {
+	var req BulkRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request body.")
+		return
+	}
+
+	ip := middleware.GetClientIP(c)
+	userAgent := middleware.GetUserAgent(c)
+	successCount := 0
+
+	for _, idStr := range req.IDs {
+		id, err := uuid.Parse(idStr)
+		if err == nil {
+			if h.canAdminDeleteUser(c, id) {
+				if h.userService.ForceDeleteUser(id, ip, userAgent) == nil {
+					successCount++
+				}
+			}
+		}
+	}
+
+	response.Success(c, http.StatusOK, "Bulk force delete completed.", gin.H{"success_count": successCount})
+}
+
+func (h *UserHandler) BulkUpdateStatus(c *gin.Context) {
+	var req BulkStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request body.")
+		return
+	}
+	
+	status := models.UserStatus(req.Status)
+	if status != models.UserStatusActive && status != models.UserStatusPending && status != models.UserStatusInactive && status != models.UserStatusSuspend {
+		response.BadRequest(c, "Invalid status value.")
+		return
+	}
+
+	ip := middleware.GetClientIP(c)
+	userAgent := middleware.GetUserAgent(c)
+	successCount := 0
+
+	for _, idStr := range req.IDs {
+		id, err := uuid.Parse(idStr)
+		if err == nil {
+			// Get user to verify existence and maybe permissions
+			if _, err := h.userService.GetUserByID(id); err == nil {
+				updateReq := models.UpdateUserRequest{Status: &status}
+				if _, err := h.userService.UpdateUser(id, updateReq, ip, userAgent); err == nil {
+					successCount++
+				}
+			}
+		}
+	}
+
+	response.Success(c, http.StatusOK, "Bulk update status completed.", gin.H{"success_count": successCount})
 }

@@ -28,8 +28,14 @@ func NewRoleService(
 	}
 }
 
-func (s *RoleService) GetAllRoles() ([]models.Role, error) {
-	return s.roleRepo.FindAll()
+func (s *RoleService) GetAllRoles(page, perPage int, search, sort, order string) ([]models.Role, int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 || perPage > 100 {
+		perPage = 20
+	}
+	return s.roleRepo.FindAll(page, perPage, search, sort, order)
 }
 
 func (s *RoleService) GetRoleByID(id uuid.UUID) (*models.Role, error) {

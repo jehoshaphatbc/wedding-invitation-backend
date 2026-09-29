@@ -115,6 +115,11 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		admin.PUT("/company-settings", companySettingHandler.Update)
 
 		admin.GET("/users", userHandler.GetAllUsers)
+		admin.POST("/users/bulk-delete", userHandler.BulkDeleteUsers)
+		admin.POST("/users/bulk-restore", middleware.SuperAdminOnly(), userHandler.BulkRestoreUsers)
+		admin.POST("/users/bulk-force-delete", middleware.SuperAdminOnly(), userHandler.BulkForceDeleteUsers)
+		admin.POST("/users/bulk-status", userHandler.BulkUpdateStatus)
+
 		admin.GET("/users/trash", middleware.SuperAdminOnly(), userHandler.GetTrashedUsers)
 
 		admin.POST("/users", userHandler.CreateUser)
@@ -129,6 +134,10 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		admin.GET("/stats", userHandler.GetStats)
 
 		admin.GET("/roles", roleHandler.GetAllRoles)
+		admin.POST("/roles/bulk-delete", middleware.SuperAdminOnly(), roleHandler.BulkDeleteRoles)
+		admin.POST("/roles/bulk-restore", middleware.SuperAdminOnly(), roleHandler.BulkRestoreRoles)
+		admin.POST("/roles/bulk-force-delete", middleware.SuperAdminOnly(), roleHandler.BulkForceDeleteRoles)
+
 		admin.GET("/roles/trash", middleware.SuperAdminOnly(), roleHandler.GetTrashedRoles)
 
 		admin.POST("/roles", roleHandler.CreateRole)

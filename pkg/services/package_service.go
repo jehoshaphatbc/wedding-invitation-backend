@@ -38,8 +38,8 @@ func (s *PackageService) CreatePackage(req PackageRequest) (*models.Package, err
 	return pkg, nil
 }
 
-func (s *PackageService) GetAllPackages() ([]models.Package, error) {
-	return s.packageRepo.FindAll()
+func (s *PackageService) GetAllPackages(page, perPage int, search, sort, order string) ([]models.Package, int64, error) {
+	return s.packageRepo.FindAll(page, perPage, search, sort, order)
 }
 
 func (s *PackageService) GetPackageByID(id uuid.UUID) (*models.Package, error) {

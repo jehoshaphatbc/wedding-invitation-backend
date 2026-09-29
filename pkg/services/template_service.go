@@ -38,8 +38,8 @@ func (s *TemplateService) CreateTemplate(req TemplateRequest) (*models.Template,
 	return template, nil
 }
 
-func (s *TemplateService) GetAllTemplates() ([]models.Template, error) {
-	return s.templateRepo.FindAll()
+func (s *TemplateService) GetAllTemplates(page, perPage int, search, sort, order string) ([]models.Template, int64, error) {
+	return s.templateRepo.FindAll(page, perPage, search, sort, order)
 }
 
 func (s *TemplateService) GetTemplateByID(id uuid.UUID) (*models.Template, error) {

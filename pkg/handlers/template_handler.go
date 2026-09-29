@@ -3,6 +3,8 @@ package handlers
 import (
 	"net/http"
 
+	"strconv"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
@@ -35,13 +37,25 @@ func (h *TemplateHandler) CreateTemplate(c *gin.Context) {
 }
 
 func (h *TemplateHandler) GetAllTemplates(c *gin.Context) {
-	templates, err := h.templateService.GetAllTemplates()
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "20"))
+	search := c.Query("search")
+	sort := c.Query("sort")
+	order := c.Query("order")
+
+	templates, total, err := h.templateService.GetAllTemplates(page, perPage, search, sort, order)
 	if err != nil {
 		response.InternalServerError(c, "Failed to retrieve templates: " + err.Error())
 		return
 	}
 
-	response.Success(c, http.StatusOK, "Templates retrieved successfully.", templates)
+	meta := gin.H{
+		"page":     page,
+		"per_page": perPage,
+		"total":    total,
+	}
+
+	response.SuccessWithMeta(c, http.StatusOK, "Templates retrieved successfully.", templates, meta)
 }
 
 func (h *TemplateHandler) GetTemplate(c *gin.Context) {

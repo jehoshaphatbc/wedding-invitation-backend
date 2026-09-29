@@ -3,6 +3,8 @@ package handlers
 import (
 	"net/http"
 
+	"strconv"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
@@ -35,13 +37,25 @@ func (h *PackageHandler) CreatePackage(c *gin.Context) {
 }
 
 func (h *PackageHandler) GetAllPackages(c *gin.Context) {
-	packages, err := h.packageService.GetAllPackages()
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "20"))
+	search := c.Query("search")
+	sort := c.Query("sort")
+	order := c.Query("order")
+
+	packages, total, err := h.packageService.GetAllPackages(page, perPage, search, sort, order)
 	if err != nil {
 		response.InternalServerError(c, "Failed to retrieve packages: " + err.Error())
 		return
 	}
 
-	response.Success(c, http.StatusOK, "Packages retrieved successfully.", packages)
+	meta := gin.H{
+		"page":     page,
+		"per_page": perPage,
+		"total":    total,
+	}
+
+	response.SuccessWithMeta(c, http.StatusOK, "Packages retrieved successfully.", packages, meta)
 }
 
 func (h *PackageHandler) GetPackage(c *gin.Context) {

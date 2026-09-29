@@ -9,7 +9,7 @@ import (
 
 type PackageRepository interface {
 	Create(pkg *models.Package) error
-	FindAll() ([]models.Package, error)
+	FindAll(page, perPage int, search, sort, order string) ([]models.Package, int64, error)
 	FindByID(id uuid.UUID) (*models.Package, error)
 	Update(pkg *models.Package) error
 	Delete(id uuid.UUID) error
@@ -27,10 +27,28 @@ func (r *packageRepository) Create(pkg *models.Package) error {
 	return r.db.Create(pkg).Error
 }
 
-func (r *packageRepository) FindAll() ([]models.Package, error) {
+func (r *packageRepository) FindAll(page, perPage int, search, sort, order string) ([]models.Package, int64, error) {
 	var packages []models.Package
-	err := r.db.Order("created_at DESC").Find(&packages).Error
-	return packages, err
+	var total int64
+
+	query := r.db.Model(&models.Package{})
+
+	if search != "" {
+		query = query.Where("name ILIKE ?", "%"+search+"%")
+	}
+
+	query.Count(&total)
+
+	if sort == "" {
+		sort = "created_at"
+	}
+	if order == "" {
+		order = "desc"
+	}
+
+	offset := (page - 1) * perPage
+	err := query.Offset(offset).Limit(perPage).Order(sort + " " + order).Find(&packages).Error
+	return packages, total, err
 }
 
 func (r *packageRepository) FindByID(id uuid.UUID) (*models.Package, error) {

@@ -9,7 +9,7 @@ import (
 
 type TemplateRepository interface {
 	Create(template *models.Template) error
-	FindAll() ([]models.Template, error)
+	FindAll(page, perPage int, search, sort, order string) ([]models.Template, int64, error)
 	FindByID(id uuid.UUID) (*models.Template, error)
 	Update(template *models.Template) error
 	Delete(id uuid.UUID) error
@@ -27,10 +27,28 @@ func (r *templateRepository) Create(template *models.Template) error {
 	return r.db.Create(template).Error
 }
 
-func (r *templateRepository) FindAll() ([]models.Template, error) {
+func (r *templateRepository) FindAll(page, perPage int, search, sort, order string) ([]models.Template, int64, error) {
 	var templates []models.Template
-	err := r.db.Order("created_at DESC").Find(&templates).Error
-	return templates, err
+	var total int64
+
+	query := r.db.Model(&models.Template{})
+
+	if search != "" {
+		query = query.Where("name ILIKE ? OR nuxt_component ILIKE ?", "%"+search+"%", "%"+search+"%")
+	}
+
+	query.Count(&total)
+
+	if sort == "" {
+		sort = "created_at"
+	}
+	if order == "" {
+		order = "desc"
+	}
+
+	offset := (page - 1) * perPage
+	err := query.Offset(offset).Limit(perPage).Order(sort + " " + order).Find(&templates).Error
+	return templates, total, err
 }
 
 func (r *templateRepository) FindByID(id uuid.UUID) (*models.Template, error) {

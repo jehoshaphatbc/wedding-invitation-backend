@@ -12,6 +12,7 @@ import (
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/middleware"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/repositories"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/services"
+	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/services/blob"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/auth"
 )
 
@@ -39,11 +40,13 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	userService := services.NewUserService(userRepo, roleRepo, profileRepo, auditRepo, refreshTokenRepo)
 	roleService := services.NewRoleService(roleRepo, permissionRepo, auditRepo)
 	companySettingService := services.NewCompanySettingService(companySettingRepo, auditRepo)
+	blobService := blob.NewBlobService(cfg)
 
 	authHandler := handlers.NewAuthHandler(authService)
 	userHandler := handlers.NewUserHandler(userService)
 	roleHandler := handlers.NewRoleHandler(roleService)
-	companySettingHandler := handlers.NewCompanySettingHandler(companySettingService)
+	companySettingHandler := handlers.NewCompanySettingHandler(companySettingService, blobService)
+	uploadHandler := handlers.NewUploadHandler(blobService, cfg)
 
 	r := gin.Default()
 
@@ -99,6 +102,8 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		protected.GET("/me", userHandler.GetProfile)
 		protected.PATCH("/me", userHandler.UpdateProfile)
 		protected.POST("/me/email", authHandler.ChangeEmail)
+		
+		protected.POST("/upload", uploadHandler.UploadFile)
 	}
 
 	admin := api.Group("/admin")

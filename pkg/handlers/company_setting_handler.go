@@ -4,22 +4,24 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
-	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/middleware"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/models"
-	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/services"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/response"
+	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/services"
+	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/services/blob"
 )
 
 type CompanySettingHandler struct {
-	service *services.CompanySettingService
+	service     *services.CompanySettingService
+	blobService *blob.BlobService
 }
 
-func NewCompanySettingHandler(service *services.CompanySettingService) *CompanySettingHandler {
-	return &CompanySettingHandler{service: service}
+func NewCompanySettingHandler(service *services.CompanySettingService, blobService *blob.BlobService) *CompanySettingHandler {
+	return &CompanySettingHandler{service: service, blobService: blobService}
 }
 
 func (h *CompanySettingHandler) Get(c *gin.Context) {
@@ -44,16 +46,25 @@ func (h *CompanySettingHandler) Update(c *gin.Context) {
 
 	var faviconURL, logoLongURL, logoSquareURL *string
 
-	// Helper function to handle file upload
+	// Helper function to handle file upload to Vercel Blob
 	handleUpload := func(field string) *string {
-		file, err := c.FormFile(field)
-		if err == nil {
-			ext := filepath.Ext(file.Filename)
-			filename := fmt.Sprintf("%s_%d%s", field, time.Now().Unix(), ext)
-			path := filepath.Join("uploads", "company", filename)
-			if err := c.SaveUploadedFile(file, path); err == nil {
-				url := "/" + path
-				return &url
+		fileHeader, err := c.FormFile(field)
+		if err == nil && fileHeader != nil {
+			// Validation (Max 10MB default)
+			// maxUploadSize checking is handled by global setup or can be checked here
+			file, err := fileHeader.Open()
+			if err != nil {
+				return nil
+			}
+			defer file.Close()
+			
+			ext := filepath.Ext(fileHeader.Filename)
+			uuidStr := uuid.New().String()
+			filename := fmt.Sprintf("uploads/company/%s-%s%s", uuidStr, field, ext)
+			
+			res, err := h.blobService.Upload(c.Request.Context(), filename, file, fileHeader.Header.Get("Content-Type"))
+			if err == nil {
+				return &res.URL
 			}
 		}
 		return nil

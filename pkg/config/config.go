@@ -32,6 +32,9 @@ type Config struct {
 	GinMode    string
 
 	FRONTEND_URL string
+	
+	BlobReadWriteToken string
+	MaxUploadSize      int64
 }
 
 func Load() (*Config, error) {
@@ -39,6 +42,9 @@ func Load() (*Config, error) {
 
 	accessExpiry, _ := strconv.Atoi(getEnv("JWT_ACCESS_EXPIRY_MINUTES", "15"))
 	refreshExpiry, _ := strconv.Atoi(getEnv("JWT_REFRESH_EXPIRY_DAYS", "30"))
+	
+	maxUploadSizeStr := getEnv("MAX_UPLOAD_SIZE", "10485760") // Default 10MB
+	maxUploadSize, _ := strconv.ParseInt(maxUploadSizeStr, 10, 64)
 
 	cfg := &Config{
 		Environment:  getEnv("ENVIRONMENT", "development"),
@@ -64,6 +70,9 @@ func Load() (*Config, error) {
 		GinMode:    getEnv("GIN_MODE", "debug"),
 
 		FRONTEND_URL: getEnv("FRONTEND_URL", "http://localhost:3000"),
+		
+		BlobReadWriteToken: getEnv("BLOB_READ_WRITE_TOKEN", ""),
+		MaxUploadSize:      maxUploadSize,
 	}
 
 	return cfg, nil

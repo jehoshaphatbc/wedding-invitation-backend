@@ -145,5 +145,30 @@ func (r *userRepository) Restore(id uuid.UUID) error {
 }
 
 func (r *userRepository) ForceDelete(id uuid.UUID) error {
-	return r.db.Unscoped().Where("id = ?", id).Delete(&models.User{}).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// Nullify audit logs where this user is the actor
+		if err := tx.Model(&models.AuditLog{}).Where("user_id = ?", id).Update("user_id", nil).Error; err != nil {
+			return err
+		}
+
+		// Delete dependent tokens and profiles
+		if err := tx.Where("user_id = ?", id).Delete(&models.ClientProfile{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", id).Delete(&models.UserRole{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", id).Delete(&models.RefreshToken{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", id).Delete(&models.PasswordResetToken{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", id).Delete(&models.EmailVerificationToken{}).Error; err != nil {
+			return err
+		}
+
+		// Delete the user itself
+		return tx.Unscoped().Where("id = ?", id).Delete(&models.User{}).Error
+	})
 }

@@ -113,5 +113,15 @@ func (r *roleRepository) Restore(id uuid.UUID) error {
 }
 
 func (r *roleRepository) ForceDelete(id uuid.UUID) error {
-	return r.db.Unscoped().Where("id = ?", id).Delete(&models.Role{}).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// Delete dependent records
+		if err := tx.Where("role_id = ?", id).Delete(&models.UserRole{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("role_id = ?", id).Delete(&models.RolePermission{}).Error; err != nil {
+			return err
+		}
+		// Delete the role itself
+		return tx.Unscoped().Where("id = ?", id).Delete(&models.Role{}).Error
+	})
 }

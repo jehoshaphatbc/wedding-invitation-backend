@@ -37,7 +37,7 @@ func (s *BlobService) Upload(ctx context.Context, pathname string, file multipar
 		return nil, fmt.Errorf("BLOB_READ_WRITE_TOKEN is not configured")
 	}
 
-	apiURL := fmt.Sprintf("https://vercel.com/api/blob?pathname=%s", url.QueryEscape(pathname))
+	apiURL := fmt.Sprintf("https://blob.vercel-storage.com/%s", url.PathEscape(pathname))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, apiURL, file)
 	if err != nil {
@@ -50,6 +50,7 @@ func (s *BlobService) Upload(ctx context.Context, pathname string, file multipar
 
 	req.Header.Set("Authorization", "Bearer "+s.token)
 	req.Header.Set("x-api-version", "7")
+	req.Header.Set("x-access", "public")
 	req.Header.Set("x-vercel-blob-access", "public")
 	req.Header.Set("x-add-random-suffix", "0")
 	if contentType != "" {

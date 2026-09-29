@@ -16,6 +16,9 @@ type UserRepository interface {
 	FindAll(page, perPage int, search, status, role, sort, order string) ([]models.User, int64, error)
 	Update(user *models.User) error
 	Delete(id uuid.UUID) error
+	FindTrashedAll(page, perPage int, search, sort, order string) ([]models.User, int64, error)
+	Restore(id uuid.UUID) error
+	ForceDelete(id uuid.UUID) error
 	Count() (int64, error)
 	AssignRoles(userID uuid.UUID, roleIDs []uuid.UUID) error
 	UpdateLastLogin(userID uuid.UUID) error
@@ -110,4 +113,37 @@ func (r *userRepository) AssignRoles(userID uuid.UUID, roleIDs []uuid.UUID) erro
 
 func (r *userRepository) UpdateLastLogin(userID uuid.UUID) error {
 	return r.db.Model(&models.User{}).Where("id = ?", userID).Update("last_login_at", gorm.Expr("NOW()")).Error
+}
+
+func (r *userRepository) FindTrashedAll(page, perPage int, search, sort, order string) ([]models.User, int64, error) {
+	var users []models.User
+	var total int64
+
+	query := r.db.Unscoped().Where("deleted_at IS NOT NULL")
+
+	if search != "" {
+		query = query.Where("name ILIKE ? OR email ILIKE ?", "%"+search+"%", "%"+search+"%")
+	}
+
+	query.Model(&models.User{}).Count(&total)
+
+	if sort == "" {
+		sort = "deleted_at"
+	}
+	if order == "" {
+		order = "desc"
+	}
+
+	offset := (page - 1) * perPage
+	err := query.Preload("Roles.Permissions").Offset(offset).Limit(perPage).Order(sort + " " + order).Find(&users).Error
+
+	return users, total, err
+}
+
+func (r *userRepository) Restore(id uuid.UUID) error {
+	return r.db.Unscoped().Model(&models.User{}).Where("id = ?", id).Update("deleted_at", nil).Error
+}
+
+func (r *userRepository) ForceDelete(id uuid.UUID) error {
+	return r.db.Unscoped().Where("id = ?", id).Delete(&models.User{}).Error
 }

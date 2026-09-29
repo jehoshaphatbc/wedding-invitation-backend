@@ -14,6 +14,9 @@ type RoleRepository interface {
 	FindAll() ([]models.Role, error)
 	Update(role *models.Role) error
 	Delete(id uuid.UUID) error
+	FindTrashedAll(page, perPage int, search, sort, order string) ([]models.Role, int64, error)
+	Restore(id uuid.UUID) error
+	ForceDelete(id uuid.UUID) error
 	AssignPermissions(roleID uuid.UUID, permissionIDs []uuid.UUID) error
 	Count() (int64, error)
 }
@@ -78,4 +81,37 @@ func (r *roleRepository) Count() (int64, error) {
 	var count int64
 	err := r.db.Model(&models.Role{}).Count(&count).Error
 	return count, err
+}
+
+func (r *roleRepository) FindTrashedAll(page, perPage int, search, sort, order string) ([]models.Role, int64, error) {
+	var roles []models.Role
+	var total int64
+
+	query := r.db.Unscoped().Where("deleted_at IS NOT NULL")
+
+	if search != "" {
+		query = query.Where("name ILIKE ? OR display_name ILIKE ?", "%"+search+"%", "%"+search+"%")
+	}
+
+	query.Model(&models.Role{}).Count(&total)
+
+	if sort == "" {
+		sort = "deleted_at"
+	}
+	if order == "" {
+		order = "desc"
+	}
+
+	offset := (page - 1) * perPage
+	err := query.Preload("Permissions").Offset(offset).Limit(perPage).Order(sort + " " + order).Find(&roles).Error
+
+	return roles, total, err
+}
+
+func (r *roleRepository) Restore(id uuid.UUID) error {
+	return r.db.Unscoped().Model(&models.Role{}).Where("id = ?", id).Update("deleted_at", nil).Error
+}
+
+func (r *roleRepository) ForceDelete(id uuid.UUID) error {
+	return r.db.Unscoped().Where("id = ?", id).Delete(&models.Role{}).Error
 }

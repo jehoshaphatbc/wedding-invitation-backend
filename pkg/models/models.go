@@ -122,10 +122,11 @@ type Role struct {
 	Name        string       `gorm:"type:varchar(50);uniqueIndex;not null" json:"name"`
 	DisplayName string       `gorm:"type:varchar(100);not null" json:"display_name"`
 	Description *string      `gorm:"type:text" json:"description,omitempty"`
-	IsSystem    bool         `gorm:"not null" json:"is_system"`
-	CreatedAt   time.Time    `json:"created_at"`
-	UpdatedAt   time.Time    `json:"updated_at"`
-	Permissions []Permission `gorm:"many2many:role_permissions;" json:"permissions,omitempty"`
+	IsSystem    bool           `gorm:"not null" json:"is_system"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+	Permissions []Permission   `gorm:"many2many:role_permissions;" json:"permissions,omitempty"`
 }
 
 func (r *Role) BeforeCreate(tx *gorm.DB) error {

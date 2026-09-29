@@ -1,0 +1,44 @@
+name: Deploy Workflow
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  migrate-and-seed:
+    name: Migrate and Seed Database
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # We provide dummy fallbacks for config validation so it doesn't fail parsing
+      ENVIRONMENT: production
+      SUPER_ADMIN_NAME: "Super Admin"
+      SUPER_ADMIN_EMAIL: "admin@wedding.com"
+      SUPER_ADMIN_PASSWORD: "SuperAdmin123!"
+      JWT_SECRET: "dummy-secret-for-ci"
+      JWT_ACCESS_EXPIRY_MINUTES: "15"
+      JWT_REFRESH_EXPIRY_DAYS: "30"
+      SERVER_PORT: "8080"
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Install Dependencies
+        run: go mod download
+
+      - name: Run Database Migration
+        run: go run cmd/migrate/main.go -action=up
+
+      - name: Run Database Seed
+        run: go run cmd/seed/main.go
+
+      # Note: We do not run vercel deploy here to avoid double deployment,
+      # assuming Vercel is connected via Git Integration to auto-deploy on push to main.

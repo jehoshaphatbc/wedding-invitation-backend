@@ -31,6 +31,9 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	passwordResetRepo := repositories.NewPasswordResetTokenRepository(db)
 	emailVerificationRepo := repositories.NewEmailVerificationTokenRepository(db)
 	roleRepo := repositories.NewRoleRepository(db)
+	packageRepo := repositories.NewPackageRepository(db)
+	templateRepo := repositories.NewTemplateRepository(db)
+
 	permissionRepo := repositories.NewPermissionRepository(db)
 	profileRepo := repositories.NewProfileRepository(db)
 	auditRepo := repositories.NewAuditLogRepository(db)
@@ -39,12 +42,18 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	authService := services.NewAuthService(userRepo, refreshTokenRepo, passwordResetRepo, emailVerificationRepo, roleRepo, profileRepo, auditRepo, jwtManager, cfg)
 	userService := services.NewUserService(userRepo, roleRepo, profileRepo, auditRepo, refreshTokenRepo)
 	roleService := services.NewRoleService(roleRepo, permissionRepo, auditRepo)
+	packageService := services.NewPackageService(packageRepo)
+	templateService := services.NewTemplateService(templateRepo)
+
 	companySettingService := services.NewCompanySettingService(companySettingRepo, auditRepo)
 	blobService := blob.NewBlobService(cfg)
 
 	authHandler := handlers.NewAuthHandler(authService)
 	userHandler := handlers.NewUserHandler(userService)
 	roleHandler := handlers.NewRoleHandler(roleService)
+	packageHandler := handlers.NewPackageHandler(packageService)
+	templateHandler := handlers.NewTemplateHandler(templateService)
+
 	companySettingHandler := handlers.NewCompanySettingHandler(companySettingService, blobService)
 	uploadHandler := handlers.NewUploadHandler(blobService, cfg)
 
@@ -144,6 +153,19 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		admin.GET("/roles/:id", roleHandler.GetRole)
 		admin.PATCH("/roles/:id", roleHandler.UpdateRole)
 		admin.DELETE("/roles/:id", roleHandler.DeleteRole)
+
+		admin.GET("/packages", packageHandler.GetAllPackages)
+		admin.POST("/packages", packageHandler.CreatePackage)
+		admin.GET("/packages/:id", packageHandler.GetPackage)
+		admin.PATCH("/packages/:id", packageHandler.UpdatePackage)
+		admin.DELETE("/packages/:id", packageHandler.DeletePackage)
+
+		admin.GET("/templates", templateHandler.GetAllTemplates)
+		admin.POST("/templates", templateHandler.CreateTemplate)
+		admin.GET("/templates/:id", templateHandler.GetTemplate)
+		admin.PATCH("/templates/:id", templateHandler.UpdateTemplate)
+		admin.DELETE("/templates/:id", templateHandler.DeleteTemplate)
+
 		admin.POST("/roles/:id/restore", middleware.SuperAdminOnly(), roleHandler.RestoreRole)
 		admin.DELETE("/roles/:id/force", middleware.SuperAdminOnly(), roleHandler.ForceDeleteRole)
 

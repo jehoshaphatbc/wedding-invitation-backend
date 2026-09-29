@@ -79,7 +79,7 @@ func (r *userRepository) FindAll(page, perPage int, search, status, role, sort, 
 }
 
 func (r *userRepository) Update(user *models.User) error {
-	return r.db.Save(user).Error
+	return r.db.Model(user).Select("*").Omit("Roles", "ClientProfile").Updates(user).Error
 }
 
 func (r *userRepository) Delete(id uuid.UUID) error {

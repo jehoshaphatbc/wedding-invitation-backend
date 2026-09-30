@@ -80,10 +80,13 @@ func (s *RoleService) UpdateRole(id uuid.UUID, req models.UpdateRoleRequest, ip,
 		return nil, errors.New("role not found")
 	}
 
-	if role.IsSystem {
-		return nil, errors.New("cannot modify system role")
+	if role.Name == "super_admin" && req.Name != nil && *req.Name != "super_admin" {
+		return nil, errors.New("cannot change super_admin role name")
 	}
 
+	if req.Name != nil && *req.Name != "" && role.Name != "super_admin" {
+		role.Name = *req.Name
+	}
 	if req.DisplayName != nil {
 		role.DisplayName = *req.DisplayName
 	}
@@ -93,6 +96,12 @@ func (s *RoleService) UpdateRole(id uuid.UUID, req models.UpdateRoleRequest, ip,
 
 	if err := s.roleRepo.Update(role); err != nil {
 		return nil, err
+	}
+
+	if req.PermissionIDs != nil {
+		if err := s.roleRepo.AssignPermissions(id, req.PermissionIDs); err != nil {
+			return nil, err
+		}
 	}
 
 	s.auditLog(nil, "role.updated", "roles", &role.ID, ip, userAgent)
@@ -105,8 +114,8 @@ func (s *RoleService) DeleteRole(id uuid.UUID, ip, userAgent string) error {
 		return errors.New("role not found")
 	}
 
-	if role.IsSystem {
-		return errors.New("cannot delete system role")
+	if role.Name == "super_admin" {
+		return errors.New("cannot delete super_admin role")
 	}
 
 	if err := s.roleRepo.Delete(id); err != nil {
@@ -133,6 +142,56 @@ func (s *RoleService) AssignPermissions(id uuid.UUID, req models.AssignPermissio
 
 func (s *RoleService) GetAllPermissions() ([]models.Permission, error) {
 	return s.permissionRepo.FindAll()
+}
+
+func (s *RoleService) CreatePermission(req models.CreatePermissionRequest, ip, userAgent string) (*models.Permission, error) {
+	perm := &models.Permission{
+		Name:        req.Name,
+		DisplayName: req.DisplayName,
+		Description: req.Description,
+	}
+
+	if err := s.permissionRepo.Create(perm); err != nil {
+		return nil, err
+	}
+
+	s.auditLog(nil, "permission.created", "permissions", &perm.ID, ip, userAgent)
+	return perm, nil
+}
+
+func (s *RoleService) UpdatePermission(id uuid.UUID, req models.UpdatePermissionRequest, ip, userAgent string) (*models.Permission, error) {
+	perm, err := s.permissionRepo.FindByID(id)
+	if err != nil {
+		return nil, errors.New("permission not found")
+	}
+
+	if req.DisplayName != nil {
+		perm.DisplayName = *req.DisplayName
+	}
+	if req.Description != nil {
+		perm.Description = req.Description
+	}
+
+	if err := s.permissionRepo.Update(perm); err != nil {
+		return nil, err
+	}
+
+	s.auditLog(nil, "permission.updated", "permissions", &perm.ID, ip, userAgent)
+	return perm, nil
+}
+
+func (s *RoleService) DeletePermission(id uuid.UUID, ip, userAgent string) error {
+	perm, err := s.permissionRepo.FindByID(id)
+	if err != nil {
+		return errors.New("permission not found")
+	}
+
+	if err := s.permissionRepo.Delete(id); err != nil {
+		return err
+	}
+
+	s.auditLog(nil, "permission.deleted", "permissions", &perm.ID, ip, userAgent)
+	return nil
 }
 
 func (s *RoleService) GetRoleCount() (int64, error) {

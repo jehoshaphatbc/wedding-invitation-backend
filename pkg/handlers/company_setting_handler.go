@@ -24,6 +24,11 @@ func NewCompanySettingHandler(service *services.CompanySettingService, blobServi
 	return &CompanySettingHandler{service: service, blobService: blobService}
 }
 
+func (h *CompanySettingHandler) isSuperAdmin(c *gin.Context) bool {
+	isSuperAdmin, exists := c.Get("is_super_admin")
+	return exists && isSuperAdmin.(bool)
+}
+
 func (h *CompanySettingHandler) Get(c *gin.Context) {
 	setting, err := h.service.GetSettings()
 	if err != nil {
@@ -33,7 +38,20 @@ func (h *CompanySettingHandler) Get(c *gin.Context) {
 	response.Success(c, http.StatusOK, "Company settings retrieved.", models.ToCompanySettingResponse(setting))
 }
 
+func (h *CompanySettingHandler) AdminGet(c *gin.Context) {
+	if !h.isSuperAdmin(c) {
+		response.Forbidden(c, "Only superadmin can view company settings.")
+		return
+	}
+	h.Get(c)
+}
+
 func (h *CompanySettingHandler) Update(c *gin.Context) {
+	if !h.isSuperAdmin(c) {
+		response.Forbidden(c, "Only superadmin can update company settings.")
+		return
+	}
+
 	var req models.UpdateCompanySettingRequest
 	if err := c.ShouldBind(&req); err != nil {
 		response.ValidationError(c, err.Error())

@@ -58,7 +58,11 @@ func (r *packageRepository) FindByID(id uuid.UUID) (*models.Package, error) {
 }
 
 func (r *packageRepository) Update(pkg *models.Package) error {
-	return r.db.Save(pkg).Error
+	return r.db.Model(pkg).Where("id = ?", pkg.ID).Updates(map[string]interface{}{
+		"name":            pkg.Name,
+		"price":           pkg.Price,
+		"features_config": pkg.FeaturesConfig,
+	}).Error
 }
 
 func (r *packageRepository) Delete(id uuid.UUID) error {

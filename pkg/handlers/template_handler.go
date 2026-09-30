@@ -23,13 +23,13 @@ func NewTemplateHandler(templateService *services.TemplateService) *TemplateHand
 func (h *TemplateHandler) CreateTemplate(c *gin.Context) {
 	var req services.TemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request body: " + err.Error())
+		response.BadRequest(c, "Invalid request body: "+err.Error())
 		return
 	}
 
 	template, err := h.templateService.CreateTemplate(req)
 	if err != nil {
-		response.InternalServerError(c, "Failed to create template: " + err.Error())
+		response.InternalServerError(c, "Failed to create template: "+err.Error())
 		return
 	}
 
@@ -45,7 +45,7 @@ func (h *TemplateHandler) GetAllTemplates(c *gin.Context) {
 
 	templates, total, err := h.templateService.GetAllTemplates(page, perPage, search, sort, order)
 	if err != nil {
-		response.InternalServerError(c, "Failed to retrieve templates: " + err.Error())
+		response.InternalServerError(c, "Failed to retrieve templates: "+err.Error())
 		return
 	}
 
@@ -83,7 +83,7 @@ func (h *TemplateHandler) UpdateTemplate(c *gin.Context) {
 
 	var req services.TemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request body: " + err.Error())
+		response.BadRequest(c, "Invalid request body: "+err.Error())
 		return
 	}
 
@@ -93,7 +93,7 @@ func (h *TemplateHandler) UpdateTemplate(c *gin.Context) {
 			response.NotFound(c, err.Error())
 			return
 		}
-		response.InternalServerError(c, "Failed to update template: " + err.Error())
+		response.InternalServerError(c, "Failed to update template: "+err.Error())
 		return
 	}
 
@@ -112,7 +112,7 @@ func (h *TemplateHandler) DeleteTemplate(c *gin.Context) {
 			response.NotFound(c, err.Error())
 			return
 		}
-		response.InternalServerError(c, "Failed to delete template: " + err.Error())
+		response.InternalServerError(c, "Failed to delete template: "+err.Error())
 		return
 	}
 

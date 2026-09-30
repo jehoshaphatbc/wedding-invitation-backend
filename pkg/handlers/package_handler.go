@@ -23,13 +23,13 @@ func NewPackageHandler(packageService *services.PackageService) *PackageHandler 
 func (h *PackageHandler) CreatePackage(c *gin.Context) {
 	var req services.PackageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request body: " + err.Error())
+		response.BadRequest(c, "Invalid request body: "+err.Error())
 		return
 	}
 
 	pkg, err := h.packageService.CreatePackage(req)
 	if err != nil {
-		response.InternalServerError(c, "Failed to create package: " + err.Error())
+		response.InternalServerError(c, "Failed to create package: "+err.Error())
 		return
 	}
 
@@ -45,7 +45,7 @@ func (h *PackageHandler) GetAllPackages(c *gin.Context) {
 
 	packages, total, err := h.packageService.GetAllPackages(page, perPage, search, sort, order)
 	if err != nil {
-		response.InternalServerError(c, "Failed to retrieve packages: " + err.Error())
+		response.InternalServerError(c, "Failed to retrieve packages: "+err.Error())
 		return
 	}
 
@@ -83,7 +83,7 @@ func (h *PackageHandler) UpdatePackage(c *gin.Context) {
 
 	var req services.PackageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request body: " + err.Error())
+		response.BadRequest(c, "Invalid request body: "+err.Error())
 		return
 	}
 
@@ -93,7 +93,7 @@ func (h *PackageHandler) UpdatePackage(c *gin.Context) {
 			response.NotFound(c, err.Error())
 			return
 		}
-		response.InternalServerError(c, "Failed to update package: " + err.Error())
+		response.InternalServerError(c, "Failed to update package: "+err.Error())
 		return
 	}
 
@@ -112,7 +112,7 @@ func (h *PackageHandler) DeletePackage(c *gin.Context) {
 			response.NotFound(c, err.Error())
 			return
 		}
-		response.InternalServerError(c, "Failed to delete package: " + err.Error())
+		response.InternalServerError(c, "Failed to delete package: "+err.Error())
 		return
 	}
 

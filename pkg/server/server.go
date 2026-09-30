@@ -52,7 +52,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	userHandler := handlers.NewUserHandler(userService)
 	roleHandler := handlers.NewRoleHandler(roleService)
 	packageHandler := handlers.NewPackageHandler(packageService)
-	templateHandler := handlers.NewTemplateHandler(templateService)
+	templateHandler := handlers.NewTemplateHandler(templateService, blobService)
 
 	companySettingHandler := handlers.NewCompanySettingHandler(companySettingService, blobService)
 	uploadHandler := handlers.NewUploadHandler(blobService, cfg)

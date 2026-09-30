@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"fmt"
+	"mime/multipart"
 	"net/http"
-
+	"path/filepath"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -11,21 +13,63 @@ import (
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/middleware"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/response"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/services"
+	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/services/blob"
 )
 
 type TemplateHandler struct {
 	templateService *services.TemplateService
+	blobService     *blob.BlobService
 }
 
-func NewTemplateHandler(templateService *services.TemplateService) *TemplateHandler {
-	return &TemplateHandler{templateService: templateService}
+func NewTemplateHandler(templateService *services.TemplateService, blobService *blob.BlobService) *TemplateHandler {
+	return &TemplateHandler{
+		templateService: templateService,
+		blobService:     blobService,
+	}
+}
+
+func (h *TemplateHandler) handleUpload(c *gin.Context) *string {
+	if h.blobService == nil {
+		return nil
+	}
+
+	var fileHeader *multipart.FileHeader
+	var err error
+	for _, field := range []string{"thumbnail", "thumbnail_url", "file"} {
+		fileHeader, err = c.FormFile(field)
+		if err == nil && fileHeader != nil {
+			break
+		}
+	}
+
+	if fileHeader != nil && fileHeader.Size > 0 {
+		file, err := fileHeader.Open()
+		if err != nil {
+			return nil
+		}
+		defer file.Close()
+
+		ext := filepath.Ext(fileHeader.Filename)
+		uuidStr := uuid.New().String()
+		filename := fmt.Sprintf("uploads/templates/%s-thumbnail%s", uuidStr, ext)
+
+		res, err := h.blobService.Upload(c.Request.Context(), filename, file, fileHeader.Size, fileHeader.Header.Get("Content-Type"))
+		if err == nil {
+			return &res.URL
+		}
+	}
+	return nil
 }
 
 func (h *TemplateHandler) CreateTemplate(c *gin.Context) {
 	var req services.TemplateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBind(&req); err != nil {
 		response.BadRequest(c, "Invalid request body: "+err.Error())
 		return
+	}
+
+	if uploadedURL := h.handleUpload(c); uploadedURL != nil {
+		req.ThumbnailURL = uploadedURL
 	}
 
 	template, err := h.templateService.CreateTemplate(req)
@@ -83,9 +127,13 @@ func (h *TemplateHandler) UpdateTemplate(c *gin.Context) {
 	}
 
 	var req services.TemplateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBind(&req); err != nil {
 		response.BadRequest(c, "Invalid request body: "+err.Error())
 		return
+	}
+
+	if uploadedURL := h.handleUpload(c); uploadedURL != nil {
+		req.ThumbnailURL = uploadedURL
 	}
 
 	template, err := h.templateService.UpdateTemplate(id, req)
@@ -278,4 +326,3 @@ func (h *TemplateHandler) BulkForceDeleteTemplates(c *gin.Context) {
 
 	response.Success(c, http.StatusOK, "Bulk force delete completed.", gin.H{"success_count": successCount})
 }
-

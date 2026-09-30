@@ -61,7 +61,11 @@ func (r *templateRepository) FindByID(id uuid.UUID) (*models.Template, error) {
 }
 
 func (r *templateRepository) Update(template *models.Template) error {
-	return r.db.Save(template).Error
+	return r.db.Model(template).Where("id = ?", template.ID).Updates(map[string]interface{}{
+		"name":           template.Name,
+		"nuxt_component": template.NuxtComponent,
+		"thumbnail_url":  template.ThumbnailURL,
+	}).Error
 }
 
 func (r *templateRepository) Delete(id uuid.UUID) error {

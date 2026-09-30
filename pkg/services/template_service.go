@@ -11,9 +11,9 @@ import (
 )
 
 type TemplateRequest struct {
-	Name          string  `json:"name" binding:"required"`
-	NuxtComponent string  `json:"nuxt_component" binding:"required"`
-	ThumbnailURL  *string `json:"thumbnail_url"`
+	Name          string  `json:"name" form:"name" binding:"required"`
+	NuxtComponent string  `json:"nuxt_component" form:"nuxt_component" binding:"required"`
+	ThumbnailURL  *string `json:"thumbnail_url" form:"thumbnail_url"`
 }
 
 type TemplateService struct {
@@ -85,7 +85,13 @@ func (s *TemplateService) UpdateTemplate(id uuid.UUID, req TemplateRequest) (*mo
 
 	template.Name = req.Name
 	template.NuxtComponent = req.NuxtComponent
-	template.ThumbnailURL = req.ThumbnailURL
+	if req.ThumbnailURL != nil {
+		if *req.ThumbnailURL == "" {
+			template.ThumbnailURL = nil
+		} else {
+			template.ThumbnailURL = req.ThumbnailURL
+		}
+	}
 
 	if err := s.templateRepo.Update(template); err != nil {
 		return nil, err

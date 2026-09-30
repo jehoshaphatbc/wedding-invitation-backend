@@ -278,4 +278,3 @@ func (h *PackageHandler) BulkForceDeletePackages(c *gin.Context) {
 
 	response.Success(c, http.StatusOK, "Bulk force delete completed.", gin.H{"success_count": successCount})
 }
-

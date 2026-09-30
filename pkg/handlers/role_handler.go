@@ -23,6 +23,11 @@ func NewRoleHandler(roleService *services.RoleService) *RoleHandler {
 }
 
 func (h *RoleHandler) GetAllRoles(c *gin.Context) {
+	if !h.isSuperAdmin(c) {
+		response.Forbidden(c, "Only superadmin can view roles.")
+		return
+	}
+
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "20"))
 	search := c.Query("search")
@@ -50,6 +55,11 @@ func (h *RoleHandler) GetAllRoles(c *gin.Context) {
 }
 
 func (h *RoleHandler) GetRole(c *gin.Context) {
+	if !h.isSuperAdmin(c) {
+		response.Forbidden(c, "Only superadmin can view roles.")
+		return
+	}
+
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		response.BadRequest(c, "Invalid role ID.")
@@ -66,6 +76,11 @@ func (h *RoleHandler) GetRole(c *gin.Context) {
 }
 
 func (h *RoleHandler) CreateRole(c *gin.Context) {
+	if !h.isSuperAdmin(c) {
+		response.Forbidden(c, "Only superadmin can manage roles.")
+		return
+	}
+
 	var req models.CreateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.ValidationError(c, err.Error())
@@ -85,6 +100,11 @@ func (h *RoleHandler) CreateRole(c *gin.Context) {
 }
 
 func (h *RoleHandler) UpdateRole(c *gin.Context) {
+	if !h.isSuperAdmin(c) {
+		response.Forbidden(c, "Only superadmin can manage roles.")
+		return
+	}
+
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		response.BadRequest(c, "Invalid role ID.")
@@ -133,6 +153,11 @@ func (h *RoleHandler) DeleteRole(c *gin.Context) {
 }
 
 func (h *RoleHandler) AssignPermissions(c *gin.Context) {
+	if !h.isSuperAdmin(c) {
+		response.Forbidden(c, "Only superadmin can manage roles.")
+		return
+	}
+
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		response.BadRequest(c, "Invalid role ID.")
@@ -158,6 +183,10 @@ func (h *RoleHandler) AssignPermissions(c *gin.Context) {
 }
 
 func (h *RoleHandler) GetAllPermissions(c *gin.Context) {
+	if !h.isSuperAdmin(c) {
+		response.Forbidden(c, "Only superadmin can view permissions.")
+		return
+	}
 	permissions, err := h.roleService.GetAllPermissions()
 	if err != nil {
 		response.InternalServerError(c, "Failed to retrieve permissions.")
@@ -165,6 +194,83 @@ func (h *RoleHandler) GetAllPermissions(c *gin.Context) {
 	}
 
 	response.Success(c, http.StatusOK, "Permissions retrieved successfully.", permissions)
+}
+
+func (h *RoleHandler) CreatePermission(c *gin.Context) {
+	if !h.isSuperAdmin(c) {
+		response.Forbidden(c, "Only superadmin can manage permissions.")
+		return
+	}
+
+	var req models.CreatePermissionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ValidationError(c, err.Error())
+		return
+	}
+
+	ip := middleware.GetClientIP(c)
+	userAgent := middleware.GetUserAgent(c)
+
+	perm, err := h.roleService.CreatePermission(req, ip, userAgent)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	response.Success(c, http.StatusCreated, "Permission created successfully.", perm)
+}
+
+func (h *RoleHandler) UpdatePermission(c *gin.Context) {
+	if !h.isSuperAdmin(c) {
+		response.Forbidden(c, "Only superadmin can manage permissions.")
+		return
+	}
+
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid permission ID.")
+		return
+	}
+
+	var req models.UpdatePermissionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ValidationError(c, err.Error())
+		return
+	}
+
+	ip := middleware.GetClientIP(c)
+	userAgent := middleware.GetUserAgent(c)
+
+	perm, err := h.roleService.UpdatePermission(id, req, ip, userAgent)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Permission updated successfully.", perm)
+}
+
+func (h *RoleHandler) DeletePermission(c *gin.Context) {
+	if !h.isSuperAdmin(c) {
+		response.Forbidden(c, "Only superadmin can manage permissions.")
+		return
+	}
+
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid permission ID.")
+		return
+	}
+
+	ip := middleware.GetClientIP(c)
+	userAgent := middleware.GetUserAgent(c)
+
+	if err := h.roleService.DeletePermission(id, ip, userAgent); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Permission deleted successfully.", nil)
 }
 
 func (h *RoleHandler) GetTrashedRoles(c *gin.Context) {

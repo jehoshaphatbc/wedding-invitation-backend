@@ -88,12 +88,25 @@ type CreateRoleRequest struct {
 }
 
 type UpdateRoleRequest struct {
-	DisplayName *string `json:"display_name" binding:"omitempty,max=100"`
-	Description *string `json:"description"`
+	Name          *string     `json:"name" binding:"omitempty,max=50"`
+	DisplayName   *string     `json:"display_name" binding:"omitempty,max=100"`
+	Description   *string     `json:"description"`
+	PermissionIDs []uuid.UUID `json:"permission_ids"`
 }
 
 type AssignPermissionsRequest struct {
 	PermissionIDs []uuid.UUID `json:"permission_ids" binding:"required"`
+}
+
+type CreatePermissionRequest struct {
+	Name        string  `json:"name" binding:"required,max=100"`
+	DisplayName string  `json:"display_name" binding:"required,max=150"`
+	Description *string `json:"description"`
+}
+
+type UpdatePermissionRequest struct {
+	DisplayName *string `json:"display_name" binding:"omitempty,max=150"`
+	Description *string `json:"description"`
 }
 
 type UserResponse struct {

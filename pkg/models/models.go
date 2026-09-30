@@ -196,3 +196,44 @@ func (c *CompanySetting) BeforeCreate(tx *gorm.DB) error {
 	}
 	return nil
 }
+
+type FeaturesConfig struct {
+	HasGallery   bool `json:"has_gallery"`
+	GalleryLimit int  `json:"gallery_limit"`
+	HasVideo     bool `json:"has_video"`
+	HasQR        bool `json:"has_qr"`
+}
+
+type Package struct {
+	ID             uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
+	Name           string         `gorm:"type:varchar(255);not null" json:"name"`
+	Price          float64        `gorm:"type:numeric(15,2);not null" json:"price"`
+	FeaturesConfig FeaturesConfig `gorm:"type:jsonb;serializer:json" json:"features_config"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
+	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+func (p *Package) BeforeCreate(tx *gorm.DB) error {
+	if p.ID == uuid.Nil {
+		p.ID = uuid.New()
+	}
+	return nil
+}
+
+type Template struct {
+	ID            uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
+	Name          string         `gorm:"type:varchar(255);not null" json:"name"`
+	NuxtComponent string         `gorm:"type:varchar(255);not null" json:"nuxt_component"`
+	ThumbnailURL  *string        `gorm:"type:varchar(255)" json:"thumbnail_url,omitempty"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+func (t *Template) BeforeCreate(tx *gorm.DB) error {
+	if t.ID == uuid.Nil {
+		t.ID = uuid.New()
+	}
+	return nil
+}

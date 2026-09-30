@@ -36,6 +36,8 @@ func Connect(cfg *config.Config) (*gorm.DB, error) {
 		&models.PasswordResetToken{},
 		&models.EmailVerificationToken{},
 		&models.AuditLog{},
+		&models.Package{},
+		&models.Template{},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to migrate database: %w", err)

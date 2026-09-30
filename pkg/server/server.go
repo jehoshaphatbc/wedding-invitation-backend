@@ -42,8 +42,8 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	authService := services.NewAuthService(userRepo, refreshTokenRepo, passwordResetRepo, emailVerificationRepo, roleRepo, profileRepo, auditRepo, jwtManager, cfg)
 	userService := services.NewUserService(userRepo, roleRepo, profileRepo, auditRepo, refreshTokenRepo)
 	roleService := services.NewRoleService(roleRepo, permissionRepo, auditRepo)
-	packageService := services.NewPackageService(packageRepo)
-	templateService := services.NewTemplateService(templateRepo)
+	packageService := services.NewPackageService(packageRepo, auditRepo)
+	templateService := services.NewTemplateService(templateRepo, auditRepo)
 
 	companySettingService := services.NewCompanySettingService(companySettingRepo, auditRepo)
 	blobService := blob.NewBlobService(cfg)
@@ -146,32 +146,39 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		admin.POST("/roles/bulk-delete", middleware.SuperAdminOnly(), roleHandler.BulkDeleteRoles)
 		admin.POST("/roles/bulk-restore", middleware.SuperAdminOnly(), roleHandler.BulkRestoreRoles)
 		admin.POST("/roles/bulk-force-delete", middleware.SuperAdminOnly(), roleHandler.BulkForceDeleteRoles)
-
 		admin.GET("/roles/trash", middleware.SuperAdminOnly(), roleHandler.GetTrashedRoles)
-
 		admin.POST("/roles", roleHandler.CreateRole)
 		admin.GET("/roles/:id", roleHandler.GetRole)
 		admin.PATCH("/roles/:id", roleHandler.UpdateRole)
 		admin.DELETE("/roles/:id", roleHandler.DeleteRole)
+		admin.POST("/roles/:id/restore", middleware.SuperAdminOnly(), roleHandler.RestoreRole)
+		admin.DELETE("/roles/:id/force", middleware.SuperAdminOnly(), roleHandler.ForceDeleteRole)
+		admin.PUT("/roles/:id/permissions", roleHandler.AssignPermissions)
+		admin.GET("/permissions", roleHandler.GetAllPermissions)
 
 		admin.GET("/packages", packageHandler.GetAllPackages)
+		admin.POST("/packages/bulk-delete", packageHandler.BulkDeletePackages)
+		admin.POST("/packages/bulk-restore", middleware.SuperAdminOnly(), packageHandler.BulkRestorePackages)
+		admin.POST("/packages/bulk-force-delete", middleware.SuperAdminOnly(), packageHandler.BulkForceDeletePackages)
+		admin.GET("/packages/trash", middleware.SuperAdminOnly(), packageHandler.GetTrashedPackages)
 		admin.POST("/packages", packageHandler.CreatePackage)
 		admin.GET("/packages/:id", packageHandler.GetPackage)
 		admin.PATCH("/packages/:id", packageHandler.UpdatePackage)
 		admin.DELETE("/packages/:id", packageHandler.DeletePackage)
+		admin.POST("/packages/:id/restore", middleware.SuperAdminOnly(), packageHandler.RestorePackage)
+		admin.DELETE("/packages/:id/force", middleware.SuperAdminOnly(), packageHandler.ForceDeletePackage)
 
 		admin.GET("/templates", templateHandler.GetAllTemplates)
+		admin.POST("/templates/bulk-delete", templateHandler.BulkDeleteTemplates)
+		admin.POST("/templates/bulk-restore", middleware.SuperAdminOnly(), templateHandler.BulkRestoreTemplates)
+		admin.POST("/templates/bulk-force-delete", middleware.SuperAdminOnly(), templateHandler.BulkForceDeleteTemplates)
+		admin.GET("/templates/trash", middleware.SuperAdminOnly(), templateHandler.GetTrashedTemplates)
 		admin.POST("/templates", templateHandler.CreateTemplate)
 		admin.GET("/templates/:id", templateHandler.GetTemplate)
 		admin.PATCH("/templates/:id", templateHandler.UpdateTemplate)
 		admin.DELETE("/templates/:id", templateHandler.DeleteTemplate)
-
-		admin.POST("/roles/:id/restore", middleware.SuperAdminOnly(), roleHandler.RestoreRole)
-		admin.DELETE("/roles/:id/force", middleware.SuperAdminOnly(), roleHandler.ForceDeleteRole)
-
-		admin.PUT("/roles/:id/permissions", roleHandler.AssignPermissions)
-
-		admin.GET("/permissions", roleHandler.GetAllPermissions)
+		admin.POST("/templates/:id/restore", middleware.SuperAdminOnly(), templateHandler.RestoreTemplate)
+		admin.DELETE("/templates/:id/force", middleware.SuperAdminOnly(), templateHandler.ForceDeleteTemplate)
 	}
 
 	return r

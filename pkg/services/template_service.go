@@ -18,10 +18,28 @@ type TemplateRequest struct {
 
 type TemplateService struct {
 	templateRepo repositories.TemplateRepository
+	auditRepo    repositories.AuditLogRepository
 }
 
-func NewTemplateService(templateRepo repositories.TemplateRepository) *TemplateService {
-	return &TemplateService{templateRepo: templateRepo}
+func NewTemplateService(templateRepo repositories.TemplateRepository, auditRepo repositories.AuditLogRepository) *TemplateService {
+	return &TemplateService{
+		templateRepo: templateRepo,
+		auditRepo:    auditRepo,
+	}
+}
+
+func (s *TemplateService) auditLog(userID *uuid.UUID, action, resourceType string, resourceID *uuid.UUID, ip, userAgent string) {
+	if s.auditRepo == nil {
+		return
+	}
+	s.auditRepo.Create(&models.AuditLog{
+		UserID:       userID,
+		Action:       action,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		IPAddress:    &ip,
+		UserAgent:    &userAgent,
+	})
 }
 
 func (s *TemplateService) CreateTemplate(req TemplateRequest) (*models.Template, error) {
@@ -39,6 +57,12 @@ func (s *TemplateService) CreateTemplate(req TemplateRequest) (*models.Template,
 }
 
 func (s *TemplateService) GetAllTemplates(page, perPage int, search, sort, order string) ([]models.Template, int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 || perPage > 100 {
+		perPage = 20
+	}
 	return s.templateRepo.FindAll(page, perPage, search, sort, order)
 }
 
@@ -70,11 +94,42 @@ func (s *TemplateService) UpdateTemplate(id uuid.UUID, req TemplateRequest) (*mo
 	return template, nil
 }
 
-func (s *TemplateService) DeleteTemplate(id uuid.UUID) error {
-	_, err := s.GetTemplateByID(id)
+func (s *TemplateService) DeleteTemplate(id uuid.UUID, ip, userAgent string) error {
+	template, err := s.GetTemplateByID(id)
 	if err != nil {
 		return err
 	}
 
-	return s.templateRepo.Delete(id)
+	if err := s.templateRepo.Delete(id); err != nil {
+		return err
+	}
+
+	s.auditLog(nil, "template.deleted", "templates", &template.ID, ip, userAgent)
+	return nil
+}
+
+func (s *TemplateService) GetTrashedTemplates(page, perPage int, search, sort, order string) ([]models.Template, int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 || perPage > 100 {
+		perPage = 20
+	}
+	return s.templateRepo.FindTrashedAll(page, perPage, search, sort, order)
+}
+
+func (s *TemplateService) RestoreTemplate(id uuid.UUID, ip, userAgent string) error {
+	err := s.templateRepo.Restore(id)
+	if err == nil {
+		s.auditLog(nil, "template.restored", "templates", &id, ip, userAgent)
+	}
+	return err
+}
+
+func (s *TemplateService) ForceDeleteTemplate(id uuid.UUID, ip, userAgent string) error {
+	err := s.templateRepo.ForceDelete(id)
+	if err == nil {
+		s.auditLog(nil, "template.force_deleted", "templates", &id, ip, userAgent)
+	}
+	return err
 }

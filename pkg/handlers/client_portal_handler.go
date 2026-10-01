@@ -39,6 +39,8 @@ func (h *ClientPortalHandler) AuthVerify(c *gin.Context) {
 			parts := strings.SplitN(authHeader, " ", 2)
 			if len(parts) == 2 && strings.ToLower(parts[0]) == "bearer" {
 				token = strings.TrimSpace(parts[1])
+			} else if len(parts) == 1 {
+				token = strings.TrimSpace(parts[0])
 			}
 		}
 	}
@@ -85,6 +87,8 @@ func (h *ClientPortalHandler) UpdateInvitation(c *gin.Context) {
 			parts := strings.SplitN(authHeader, " ", 2)
 			if len(parts) == 2 && strings.ToLower(parts[0]) == "bearer" {
 				token = strings.TrimSpace(parts[1])
+			} else if len(parts) == 1 {
+				token = strings.TrimSpace(parts[0])
 			}
 		}
 		if token == "" {

@@ -41,10 +41,15 @@ func initialize() {
 }
 
 func Handler(w http.ResponseWriter, r *http.Request) {
-	// Add CORS headers for Vercel edge cases when init fails
+	// Add CORS headers for Vercel edge cases and preflight OPTIONS
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Seeder-Secret")
+	if reqHeaders := r.Header.Get("Access-Control-Request-Headers"); reqHeaders != "" {
+		w.Header().Set("Access-Control-Allow-Headers", reqHeaders)
+	} else {
+		w.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Client-Token, X-Form-Token, X-Seeder-Secret, X-Requested-With, X-CSRF-Token")
+	}
+	w.Header().Set("Access-Control-Max-Age", "86400")
 
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusNoContent)

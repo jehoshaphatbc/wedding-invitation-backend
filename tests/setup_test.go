@@ -146,5 +146,13 @@ func setupTestRouter(tx *gorm.DB) *gin.Engine {
 	r.POST("/api/checkout", orderHandler.Checkout)
 	r.POST("/api/webhook/payment", orderHandler.PaymentWebhook)
 
+	// Seeder handler with test secret
+	cfg := &config.Config{SeederSecret: "test-seeder-secret-123"}
+	seederHandler := handlers.NewSeederHandler(tx, cfg)
+	api.GET("/seeder", seederHandler.Execute)
+	api.POST("/seeder", seederHandler.Execute)
+	r.GET("/api/seeder", seederHandler.Execute)
+	r.POST("/api/seeder", seederHandler.Execute)
+
 	return r
 }

@@ -194,9 +194,11 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		admin.GET("/templates/trash", middleware.SuperAdminOnly(), templateHandler.GetTrashedTemplates)
 		admin.POST("/templates", templateHandler.CreateTemplate)
 		admin.GET("/templates/:id", templateHandler.GetTemplate)
+		admin.PUT("/templates/:id", templateHandler.UpdateTemplate)
 		admin.PATCH("/templates/:id", templateHandler.UpdateTemplate)
 		admin.DELETE("/templates/:id", templateHandler.DeleteTemplate)
 		admin.POST("/templates/:id/restore", middleware.SuperAdminOnly(), templateHandler.RestoreTemplate)
+		admin.POST("/templates/restore", middleware.SuperAdminOnly(), templateHandler.RestoreTemplate)
 		admin.DELETE("/templates/:id/force", middleware.SuperAdminOnly(), templateHandler.ForceDeleteTemplate)
 
 		// Features (Schema-Driven UI Master Data)
@@ -257,6 +259,18 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		apiAdmin.GET("/clients/:id", clientHandler.GetClient)
 		apiAdmin.GET("/orders", orderHandler.GetAllOrders)
 		apiAdmin.GET("/orders/:id", orderHandler.GetOrder)
+
+		apiAdmin.GET("/templates", templateHandler.GetAllTemplates)
+		apiAdmin.GET("/templates/:id", templateHandler.GetTemplate)
+		apiAdmin.POST("/templates", templateHandler.CreateTemplate)
+		apiAdmin.PUT("/templates/:id", templateHandler.UpdateTemplate)
+		apiAdmin.PATCH("/templates/:id", templateHandler.UpdateTemplate)
+		apiAdmin.DELETE("/templates/:id", templateHandler.DeleteTemplate)
+		apiAdmin.POST("/templates/:id/restore", middleware.SuperAdminOnly(), templateHandler.RestoreTemplate)
+		apiAdmin.POST("/templates/restore", middleware.SuperAdminOnly(), templateHandler.RestoreTemplate)
+		apiAdmin.POST("/templates/bulk-delete", templateHandler.BulkDeleteTemplates)
+		apiAdmin.POST("/templates/bulk-restore", middleware.SuperAdminOnly(), templateHandler.BulkRestoreTemplates)
+		apiAdmin.GET("/templates/trash", middleware.SuperAdminOnly(), templateHandler.GetTrashedTemplates)
 	}
 
 	// HTTP Seeder Endpoint (protected by SEEDER_SECRET)

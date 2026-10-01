@@ -70,6 +70,7 @@ func (h *SeederHandler) Execute(c *gin.Context) {
 		"status":  "success",
 		"message": "Seeder berhasil dieksekusi",
 		"data": gin.H{
+			"templates_seeded":   stats["templates_seeded"],
 			"packages_seeded":    stats["packages_seeded"],
 			"clients_seeded":     stats["clients_seeded"],
 			"orders_seeded":      stats["orders_seeded"],

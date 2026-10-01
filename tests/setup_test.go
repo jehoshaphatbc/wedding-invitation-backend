@@ -81,6 +81,10 @@ func setupTestRouter(tx *gorm.DB) *gin.Engine {
 	orderService := services.NewOrderService(orderRepo, clientRepo, packageRepo, invitationRepo, auditRepo)
 	orderHandler := handlers.NewOrderHandler(orderService)
 
+	templateRepo := repositories.NewTemplateRepository(tx)
+	templateService := services.NewTemplateService(templateRepo, auditRepo)
+	templateHandler := handlers.NewTemplateHandler(templateService, nil)
+
 	api := r.Group("/api/v1")
 	{
 		api.GET("/features", featureHandler.GetAllFeatures)
@@ -110,6 +114,21 @@ func setupTestRouter(tx *gorm.DB) *gin.Engine {
 			admin.GET("/packages/:id", packageHandler.GetPackage)
 			admin.PATCH("/packages/:id", packageHandler.UpdatePackage)
 			admin.DELETE("/packages/:id", packageHandler.DeletePackage)
+
+			// Templates
+			admin.GET("/templates", templateHandler.GetAllTemplates)
+			admin.POST("/templates/bulk-delete", templateHandler.BulkDeleteTemplates)
+			admin.POST("/templates/bulk-restore", templateHandler.BulkRestoreTemplates)
+			admin.POST("/templates/bulk-force-delete", templateHandler.BulkForceDeleteTemplates)
+			admin.GET("/templates/trash", templateHandler.GetTrashedTemplates)
+			admin.POST("/templates", templateHandler.CreateTemplate)
+			admin.GET("/templates/:id", templateHandler.GetTemplate)
+			admin.PUT("/templates/:id", templateHandler.UpdateTemplate)
+			admin.PATCH("/templates/:id", templateHandler.UpdateTemplate)
+			admin.DELETE("/templates/:id", templateHandler.DeleteTemplate)
+			admin.POST("/templates/:id/restore", templateHandler.RestoreTemplate)
+			admin.POST("/templates/restore", templateHandler.RestoreTemplate)
+			admin.DELETE("/templates/:id/force", templateHandler.ForceDeleteTemplate)
 
 			// Clients
 			admin.GET("/clients", clientHandler.GetAllClients)
@@ -153,6 +172,18 @@ func setupTestRouter(tx *gorm.DB) *gin.Engine {
 		apiAdmin.GET("/clients/:id", clientHandler.GetClient)
 		apiAdmin.GET("/orders", orderHandler.GetAllOrders)
 		apiAdmin.GET("/orders/:id", orderHandler.GetOrder)
+
+		apiAdmin.GET("/templates", templateHandler.GetAllTemplates)
+		apiAdmin.GET("/templates/:id", templateHandler.GetTemplate)
+		apiAdmin.POST("/templates", templateHandler.CreateTemplate)
+		apiAdmin.PUT("/templates/:id", templateHandler.UpdateTemplate)
+		apiAdmin.PATCH("/templates/:id", templateHandler.UpdateTemplate)
+		apiAdmin.DELETE("/templates/:id", templateHandler.DeleteTemplate)
+		apiAdmin.POST("/templates/:id/restore", templateHandler.RestoreTemplate)
+		apiAdmin.POST("/templates/restore", templateHandler.RestoreTemplate)
+		apiAdmin.POST("/templates/bulk-delete", templateHandler.BulkDeleteTemplates)
+		apiAdmin.POST("/templates/bulk-restore", templateHandler.BulkRestoreTemplates)
+		apiAdmin.GET("/templates/trash", templateHandler.GetTrashedTemplates)
 	}
 
 	// Seeder handler with test secret

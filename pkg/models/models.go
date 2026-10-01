@@ -29,7 +29,7 @@ type User struct {
 	UpdatedAt       time.Time      `json:"updated_at"`
 	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
 	Roles           []Role         `gorm:"many2many:user_roles;" json:"roles,omitempty"`
-	ClientProfile   *ClientProfile  `gorm:"foreignKey:UserID" json:"client_profile,omitempty"`
+	ClientProfile   *ClientProfile `gorm:"foreignKey:UserID" json:"client_profile,omitempty"`
 }
 
 func (u *User) BeforeCreate(tx *gorm.DB) error {
@@ -118,10 +118,10 @@ func (p *ClientProfile) BeforeCreate(tx *gorm.DB) error {
 }
 
 type Role struct {
-	ID          uuid.UUID    `gorm:"type:uuid;primaryKey" json:"id"`
-	Name        string       `gorm:"type:varchar(50);uniqueIndex;not null" json:"name"`
-	DisplayName string       `gorm:"type:varchar(100);not null" json:"display_name"`
-	Description *string      `gorm:"type:text" json:"description,omitempty"`
+	ID          uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
+	Name        string         `gorm:"type:varchar(50);uniqueIndex;not null" json:"name"`
+	DisplayName string         `gorm:"type:varchar(100);not null" json:"display_name"`
+	Description *string        `gorm:"type:text" json:"description,omitempty"`
 	IsSystem    bool           `gorm:"not null" json:"is_system"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
@@ -250,4 +250,3 @@ func (f *Feature) BeforeCreate(tx *gorm.DB) error {
 	}
 	return nil
 }
-

@@ -36,4 +36,8 @@ migrate-version:
 	go run cmd/migrate/main.go -action=version
 
 seed:
-	go run cmd/api/main.go
+	go run cmd/seed/main.go
+
+seed-dummy:
+	go run cmd/seeder/main.go
+

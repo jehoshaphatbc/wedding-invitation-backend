@@ -40,6 +40,9 @@ func Connect(cfg *config.Config) (*gorm.DB, error) {
 		&models.Package{},
 		&models.Template{},
 		&models.Feature{},
+		&models.Client{},
+		&models.Order{},
+		&models.Invitation{},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to migrate database: %w", err)

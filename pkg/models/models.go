@@ -250,3 +250,78 @@ func (f *Feature) BeforeCreate(tx *gorm.DB) error {
 	}
 	return nil
 }
+
+type OrderStatus string
+
+const (
+	OrderStatusUnpaid  OrderStatus = "unpaid"
+	OrderStatusPaid    OrderStatus = "paid"
+	OrderStatusExpired OrderStatus = "expired"
+)
+
+type Client struct {
+	ID        uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
+	Name      string         `gorm:"type:varchar(255);not null" json:"name"`
+	Email     string         `gorm:"type:varchar(255);uniqueIndex;not null" json:"email"`
+	Whatsapp  string         `gorm:"type:varchar(50);not null" json:"whatsapp"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	Orders    []Order        `gorm:"foreignKey:ClientID" json:"orders,omitempty"`
+}
+
+func (c *Client) BeforeCreate(tx *gorm.DB) error {
+	if c.ID == uuid.Nil {
+		c.ID = uuid.New()
+	}
+	return nil
+}
+
+type Order struct {
+	ID            uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
+	InvoiceNumber string         `gorm:"type:varchar(100);uniqueIndex;not null" json:"invoice_number"`
+	ClientID      uuid.UUID      `gorm:"type:uuid;not null;index" json:"client_id"`
+	PackageID     uuid.UUID      `gorm:"type:uuid;not null;index" json:"package_id"`
+	TotalAmount   float64        `gorm:"type:numeric(15,2);not null" json:"total_amount"`
+	Status        OrderStatus    `gorm:"type:varchar(20);not null;default:'unpaid'" json:"status"`
+	PaymentURL    string         `gorm:"type:text" json:"payment_url"`
+	FormToken     string         `gorm:"type:varchar(255);index" json:"form_token"`
+	ScannerToken  string         `gorm:"type:varchar(255);index" json:"scanner_token"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
+
+	Client  *Client  `gorm:"foreignKey:ClientID" json:"client,omitempty"`
+	Package *Package `gorm:"foreignKey:PackageID" json:"package,omitempty"`
+}
+
+func (o *Order) BeforeCreate(tx *gorm.DB) error {
+	if o.ID == uuid.Nil {
+		o.ID = uuid.New()
+	}
+	return nil
+}
+
+type Invitation struct {
+	ID        uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
+	OrderID   uuid.UUID      `gorm:"type:uuid;not null;uniqueIndex" json:"order_id"`
+	ClientID  uuid.UUID      `gorm:"type:uuid;not null;index" json:"client_id"`
+	PackageID uuid.UUID      `gorm:"type:uuid;not null;index" json:"package_id"`
+	Title     string         `gorm:"type:varchar(255);not null;default:'Draft Undangan'" json:"title"`
+	Status    string         `gorm:"type:varchar(50);not null;default:'draft'" json:"status"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+
+	Order   *Order   `gorm:"foreignKey:OrderID" json:"order,omitempty"`
+	Client  *Client  `gorm:"foreignKey:ClientID" json:"client,omitempty"`
+	Package *Package `gorm:"foreignKey:PackageID" json:"package,omitempty"`
+}
+
+func (i *Invitation) BeforeCreate(tx *gorm.DB) error {
+	if i.ID == uuid.Nil {
+		i.ID = uuid.New()
+	}
+	return nil
+}
+

@@ -51,6 +51,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	featureService := services.NewFeatureService(featureRepo, auditRepo)
 	clientService := services.NewClientService(clientRepo, auditRepo)
 	orderService := services.NewOrderService(orderRepo, clientRepo, packageRepo, invitationRepo, auditRepo)
+	clientPortalService := services.NewClientPortalService(orderRepo, invitationRepo, auditRepo)
 
 	companySettingService := services.NewCompanySettingService(companySettingRepo, auditRepo)
 	blobService := blob.NewBlobService(cfg)
@@ -63,6 +64,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	featureHandler := handlers.NewFeatureHandler(featureService)
 	clientHandler := handlers.NewClientHandler(clientService)
 	orderHandler := handlers.NewOrderHandler(orderService)
+	clientPortalHandler := handlers.NewClientPortalHandler(clientPortalService, orderRepo)
 
 	companySettingHandler := handlers.NewCompanySettingHandler(companySettingService, blobService)
 	uploadHandler := handlers.NewUploadHandler(blobService, cfg)
@@ -73,7 +75,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	r.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Seeder-Secret")
+		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Seeder-Secret, X-Form-Token")
 		c.Header("Access-Control-Max-Age", "86400")
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
@@ -278,6 +280,22 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	api.POST("/seeder", seederHandler.Execute)
 	r.GET("/api/seeder", seederHandler.Execute)
 	r.POST("/api/seeder", seederHandler.Execute)
+
+	// Client Portal (Magic Link - Form Token Auth)
+	clientPortal := api.Group("/client")
+	clientPortal.Use(middleware.RateLimitMiddleware(generalRateLimiter))
+	{
+		clientPortal.GET("/auth-verify", clientPortalHandler.AuthVerify)
+		clientPortal.PUT("/invitation", middleware.ClientFormTokenMiddleware(orderRepo), clientPortalHandler.UpdateInvitation)
+	}
+
+	// Alias: /api/client (without /v1)
+	clientPortalAlias := r.Group("/api/client")
+	clientPortalAlias.Use(middleware.RateLimitMiddleware(generalRateLimiter))
+	{
+		clientPortalAlias.GET("/auth-verify", clientPortalHandler.AuthVerify)
+		clientPortalAlias.PUT("/invitation", middleware.ClientFormTokenMiddleware(orderRepo), clientPortalHandler.UpdateInvitation)
+	}
 
 	return r
 }

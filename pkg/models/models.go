@@ -267,7 +267,7 @@ type Client struct {
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
-	Orders    []Order        `gorm:"foreignKey:ClientID" json:"orders,omitempty"`
+	Orders    []Order        `gorm:"foreignKey:ClientID" json:"orders"`
 }
 
 func (c *Client) BeforeCreate(tx *gorm.DB) error {
@@ -285,8 +285,8 @@ type Order struct {
 	TotalAmount   float64        `gorm:"type:numeric(15,2);not null" json:"total_amount"`
 	Status        OrderStatus    `gorm:"type:varchar(20);not null;default:'unpaid'" json:"status"`
 	PaymentURL    string         `gorm:"type:text" json:"payment_url"`
-	FormToken     string         `gorm:"type:varchar(255);index" json:"form_token"`
-	ScannerToken  string         `gorm:"type:varchar(255);index" json:"scanner_token"`
+	FormToken     *string        `gorm:"type:varchar(255);index" json:"form_token"`
+	ScannerToken  *string        `gorm:"type:varchar(255);index" json:"scanner_token"`
 	CreatedAt     time.Time      `json:"created_at"`
 	UpdatedAt     time.Time      `json:"updated_at"`
 	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`

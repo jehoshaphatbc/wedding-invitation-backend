@@ -143,32 +143,63 @@ func SeedDummyData(tx *gorm.DB) (map[string]int, error) {
 
 	var paidOrders []models.Order
 	for _, o := range ordersData {
-		var formToken, scannerToken string
+		var formToken, scannerToken *string
 		paymentURL := fmt.Sprintf("https://app.midtrans.com/snap/v2/vtweb/mock-%s", o.InvoiceNumber)
 
 		if o.IsPaid {
-			formToken = uuid.New().String()
-			scannerToken = uuid.New().String()
-		}
+			ft := "form_" + uuid.New().String()
+			formToken = &ft
 
-		order := models.Order{
-			InvoiceNumber: o.InvoiceNumber,
-			ClientID:      clients[o.ClientIdx].ID,
-			PackageID:     packages[o.PackageIdx].ID,
-			TotalAmount:   o.Amount,
-			Status:        o.Status,
-			PaymentURL:    paymentURL,
-			FormToken:     formToken,
-			ScannerToken:  scannerToken,
-		}
+			// Check related package JSONB features_config -> has_qr
+			relPkg := packages[o.PackageIdx]
+			hasQR := false
+			if relPkg.FeaturesConfig != nil {
+				if val, ok := relPkg.FeaturesConfig["has_qr"]; ok {
+					if b, isBool := val.(bool); isBool && b {
+						hasQR = true
+					}
+				}
+			}
 
-		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&order).Error; err != nil {
-			return nil, fmt.Errorf("failed to seed order %s: %w", o.InvoiceNumber, err)
+			if hasQR {
+				st := "scan_" + uuid.New().String()
+				scannerToken = &st
+			} else {
+				scannerToken = nil
+			}
 		}
 
 		var persistedOrder models.Order
-		if err := tx.Where("invoice_number = ?", o.InvoiceNumber).First(&persistedOrder).Error; err != nil {
-			return nil, fmt.Errorf("failed to fetch order %s: %w", o.InvoiceNumber, err)
+		if err := tx.Where("invoice_number = ?", o.InvoiceNumber).First(&persistedOrder).Error; err == nil {
+			persistedOrder.FormToken = formToken
+			persistedOrder.ScannerToken = scannerToken
+			persistedOrder.Status = o.Status
+			persistedOrder.PackageID = packages[o.PackageIdx].ID
+			persistedOrder.ClientID = clients[o.ClientIdx].ID
+			persistedOrder.TotalAmount = o.Amount
+			persistedOrder.PaymentURL = paymentURL
+			if err := tx.Save(&persistedOrder).Error; err != nil {
+				return nil, fmt.Errorf("failed to update order %s: %w", o.InvoiceNumber, err)
+			}
+		} else {
+			order := models.Order{
+				InvoiceNumber: o.InvoiceNumber,
+				ClientID:      clients[o.ClientIdx].ID,
+				PackageID:     packages[o.PackageIdx].ID,
+				TotalAmount:   o.Amount,
+				Status:        o.Status,
+				PaymentURL:    paymentURL,
+				FormToken:     formToken,
+				ScannerToken:  scannerToken,
+			}
+
+			if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&order).Error; err != nil {
+				return nil, fmt.Errorf("failed to seed order %s: %w", o.InvoiceNumber, err)
+			}
+
+			if err := tx.Where("invoice_number = ?", o.InvoiceNumber).First(&persistedOrder).Error; err != nil {
+				return nil, fmt.Errorf("failed to fetch order %s: %w", o.InvoiceNumber, err)
+			}
 		}
 
 		if persistedOrder.Status == models.OrderStatusPaid {

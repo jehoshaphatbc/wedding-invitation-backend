@@ -308,6 +308,7 @@ type Invitation struct {
 	ClientID  uuid.UUID      `gorm:"type:uuid;not null;index" json:"client_id"`
 	PackageID uuid.UUID      `gorm:"type:uuid;not null;index" json:"package_id"`
 	Title     string         `gorm:"type:varchar(255);not null;default:'Draft Undangan'" json:"title"`
+	Slug      *string        `gorm:"type:varchar(255);uniqueIndex" json:"slug,omitempty"`
 	Status    string         `gorm:"type:varchar(50);not null;default:'draft'" json:"status"`
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
@@ -316,11 +317,36 @@ type Invitation struct {
 	Order   *Order   `gorm:"foreignKey:OrderID" json:"order,omitempty"`
 	Client  *Client  `gorm:"foreignKey:ClientID" json:"client,omitempty"`
 	Package *Package `gorm:"foreignKey:PackageID" json:"package,omitempty"`
+	Guests  []Guest  `gorm:"foreignKey:InvitationID" json:"guests,omitempty"`
 }
 
 func (i *Invitation) BeforeCreate(tx *gorm.DB) error {
 	if i.ID == uuid.Nil {
 		i.ID = uuid.New()
+	}
+	return nil
+}
+
+type Guest struct {
+	ID               uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
+	InvitationID     uuid.UUID      `gorm:"type:uuid;not null;index" json:"invitation_id"`
+	Name             string         `gorm:"type:varchar(255);not null" json:"name"`
+	Phone            *string        `gorm:"type:varchar(50)" json:"phone,omitempty"`
+	Pax              int            `gorm:"default:1" json:"pax"`
+	QRToken          string         `gorm:"type:varchar(255);uniqueIndex;not null" json:"qr_token"`
+	RSVPStatus       string         `gorm:"type:varchar(20);default:'pending'" json:"rsvp_status"` // 'hadir', 'tidak_hadir', 'pending'
+	ActualAttendance bool           `gorm:"default:false" json:"actual_attendance"`
+	AttendanceTime   *time.Time     `gorm:"type:timestamptz" json:"attendance_time,omitempty"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+	DeletedAt        gorm.DeletedAt `gorm:"index" json:"-"`
+
+	Invitation *Invitation `gorm:"foreignKey:InvitationID" json:"invitation,omitempty"`
+}
+
+func (g *Guest) BeforeCreate(tx *gorm.DB) error {
+	if g.ID == uuid.Nil {
+		g.ID = uuid.New()
 	}
 	return nil
 }

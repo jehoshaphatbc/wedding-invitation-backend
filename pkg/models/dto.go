@@ -296,4 +296,3 @@ type PaymentWebhookRequest struct {
 	StatusCode        string `json:"status_code"`
 	SignatureKey      string `json:"signature_key"`
 }
-

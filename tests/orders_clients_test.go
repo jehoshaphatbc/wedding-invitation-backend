@@ -138,11 +138,11 @@ func TestPublicPaymentWebhook(t *testing.T) {
 			Success bool   `json:"success"`
 			Message string `json:"message"`
 			Data    struct {
-				OrderID       uuid.UUID  `json:"order_id"`
-				Status        string     `json:"status"`
-				FormToken     string     `json:"form_token"`
-				ScannerToken  string     `json:"scanner_token"`
-				InvitationID  *uuid.UUID `json:"invitation_id"`
+				OrderID      uuid.UUID  `json:"order_id"`
+				Status       string     `json:"status"`
+				FormToken    string     `json:"form_token"`
+				ScannerToken string     `json:"scanner_token"`
+				InvitationID *uuid.UUID `json:"invitation_id"`
 			} `json:"data"`
 		}
 		err := json.Unmarshal(w.Body.Bytes(), &resp)

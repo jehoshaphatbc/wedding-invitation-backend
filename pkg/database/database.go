@@ -49,8 +49,11 @@ func Connect(cfg *config.Config) (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to migrate database: %w", err)
 	}
 
-	// Auto-seed default features if table is empty
+	// Auto-seed default features and dummy data if tables are empty
 	seeds.SeedFeatures(db)
+	if _, err := seeds.SeedDummyData(db); err != nil {
+		fmt.Printf("Warning: failed to auto-seed dummy data: %v\n", err)
+	}
 
 	fmt.Println("Database connected and migrated successfully")
 

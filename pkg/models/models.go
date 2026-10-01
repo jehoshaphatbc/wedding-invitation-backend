@@ -197,12 +197,7 @@ func (c *CompanySetting) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-type FeaturesConfig struct {
-	HasGallery   bool `json:"has_gallery"`
-	GalleryLimit int  `json:"gallery_limit"`
-	HasVideo     bool `json:"has_video"`
-	HasQR        bool `json:"has_qr"`
-}
+type FeaturesConfig map[string]interface{}
 
 type Package struct {
 	ID             uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`

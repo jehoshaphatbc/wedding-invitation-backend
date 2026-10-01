@@ -7,8 +7,8 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/models"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/auth"
+	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/models"
 )
 
 var permissionList = []struct {

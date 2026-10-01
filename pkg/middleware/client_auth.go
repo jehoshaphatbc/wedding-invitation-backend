@@ -25,11 +25,15 @@ func ClientFormTokenMiddleware(orderRepo repositories.OrderRepository) gin.Handl
 		}
 
 		if token == "" {
-			token = c.Query("token")
+			token = c.GetHeader("X-Client-Token")
 		}
 
 		if token == "" {
 			token = c.GetHeader("X-Form-Token")
+		}
+
+		if token == "" {
+			token = c.Query("token")
 		}
 
 		if token == "" {

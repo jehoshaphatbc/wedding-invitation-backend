@@ -311,6 +311,14 @@ type Invitation struct {
 	Title       string                 `gorm:"type:varchar(255);not null;default:'Draft Undangan'" json:"title"`
 	Slug        *string                `gorm:"type:varchar(255);uniqueIndex" json:"slug,omitempty"`
 	Status      string                 `gorm:"type:varchar(50);not null;default:'draft'" json:"status"`
+	Groom       interface{}            `gorm:"type:jsonb;serializer:json" json:"groom,omitempty"`
+	Bride       interface{}            `gorm:"type:jsonb;serializer:json" json:"bride,omitempty"`
+	Event       interface{}            `gorm:"type:jsonb;serializer:json" json:"event,omitempty"`
+	Theme       interface{}            `gorm:"type:jsonb;serializer:json" json:"theme,omitempty"`
+	Story       interface{}            `gorm:"type:jsonb;serializer:json" json:"story,omitempty"`
+	Gallery     interface{}            `gorm:"type:jsonb;serializer:json" json:"gallery,omitempty"`
+	Gift        interface{}            `gorm:"type:jsonb;serializer:json" json:"gift,omitempty"`
+	Gifts       interface{}            `gorm:"type:jsonb;serializer:json" json:"gifts,omitempty"`
 	GroomData   map[string]interface{} `gorm:"type:jsonb;serializer:json" json:"groom_data,omitempty"`
 	BrideData   map[string]interface{} `gorm:"type:jsonb;serializer:json" json:"bride_data,omitempty"`
 	EventsData  interface{}            `gorm:"type:jsonb;serializer:json" json:"events_data,omitempty"`

@@ -75,7 +75,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	r.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Seeder-Secret, X-Form-Token")
+		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Seeder-Secret, X-Form-Token, X-Client-Token")
 		c.Header("Access-Control-Max-Age", "86400")
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
@@ -282,11 +282,23 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	r.POST("/api/seeder", seederHandler.Execute)
 
 	// Client Portal (Magic Link - Form Token Auth)
+	clientAuthMiddleware := middleware.ClientFormTokenMiddleware(orderRepo)
+
 	clientPortal := api.Group("/client")
 	clientPortal.Use(middleware.RateLimitMiddleware(generalRateLimiter))
 	{
 		clientPortal.GET("/auth-verify", clientPortalHandler.AuthVerify)
-		clientPortal.PUT("/invitation", middleware.ClientFormTokenMiddleware(orderRepo), clientPortalHandler.UpdateInvitation)
+		clientPortal.POST("/invitation", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
+		clientPortal.PUT("/invitation", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
+		clientPortal.GET("/invitation", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
+	}
+
+	// Alias: /api/v1/invitation/setup
+	apiInvitationSetup := api.Group("/invitation")
+	apiInvitationSetup.Use(middleware.RateLimitMiddleware(generalRateLimiter))
+	{
+		apiInvitationSetup.POST("/setup", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
+		apiInvitationSetup.PUT("/setup", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
 	}
 
 	// Alias: /api/client (without /v1)
@@ -294,7 +306,17 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	clientPortalAlias.Use(middleware.RateLimitMiddleware(generalRateLimiter))
 	{
 		clientPortalAlias.GET("/auth-verify", clientPortalHandler.AuthVerify)
-		clientPortalAlias.PUT("/invitation", middleware.ClientFormTokenMiddleware(orderRepo), clientPortalHandler.UpdateInvitation)
+		clientPortalAlias.POST("/invitation", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
+		clientPortalAlias.PUT("/invitation", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
+		clientPortalAlias.GET("/invitation", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
+	}
+
+	// Alias: /api/invitation/setup (without /v1)
+	rInvitationSetup := r.Group("/api/invitation")
+	rInvitationSetup.Use(middleware.RateLimitMiddleware(generalRateLimiter))
+	{
+		rInvitationSetup.POST("/setup", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
+		rInvitationSetup.PUT("/setup", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
 	}
 
 	return r

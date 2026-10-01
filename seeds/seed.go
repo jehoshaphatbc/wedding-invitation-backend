@@ -71,12 +71,46 @@ var customerPermissions = []string{
 	"rsvp.view", "rsvp.export",
 }
 
+var defaultFeatures = []struct {
+	FeatureKey   string
+	FeatureName  string
+	InputType    string
+	DefaultValue string
+}{
+	{"has_countdown", "Hitung Mundur", "boolean", "true"},
+	{"has_maps", "Lokasi & Peta", "boolean", "true"},
+	{"has_rsvp", "Form RSVP", "boolean", "true"},
+	{"has_gift", "Amplop Digital / Gift", "boolean", "true"},
+	{"has_gallery", "Galeri Foto", "boolean", "true"},
+	{"gallery_limit", "Batas Jumlah Foto", "number", "10"},
+	{"has_story", "Love Story", "boolean", "false"},
+	{"has_video", "Video Teaser", "boolean", "false"},
+	{"has_qr", "QR Code Check-in", "boolean", "false"},
+}
+
 func Seed(db *gorm.DB, superAdminName, superAdminEmail, superAdminPassword string) {
 	seedPermissions(db)
 	seedRoles(db)
 	seedRolePermissions(db)
 	seedSuperAdmin(db, superAdminName, superAdminEmail, superAdminPassword)
 	seedCompanySetting(db)
+	SeedFeatures(db)
+}
+
+func SeedFeatures(db *gorm.DB) {
+	var count int64
+	db.Model(&models.Feature{}).Count(&count)
+	if count == 0 {
+		for _, f := range defaultFeatures {
+			db.Create(&models.Feature{
+				FeatureKey:   f.FeatureKey,
+				FeatureName:  f.FeatureName,
+				InputType:    f.InputType,
+				DefaultValue: f.DefaultValue,
+			})
+		}
+		fmt.Println("Features seeded successfully")
+	}
 }
 
 func SeedSuperAdminOnly(db *gorm.DB, superAdminName, superAdminEmail, superAdminPassword string) {

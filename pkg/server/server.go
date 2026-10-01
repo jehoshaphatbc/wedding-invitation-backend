@@ -33,6 +33,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	roleRepo := repositories.NewRoleRepository(db)
 	packageRepo := repositories.NewPackageRepository(db)
 	templateRepo := repositories.NewTemplateRepository(db)
+	featureRepo := repositories.NewFeatureRepository(db)
 
 	permissionRepo := repositories.NewPermissionRepository(db)
 	profileRepo := repositories.NewProfileRepository(db)
@@ -44,6 +45,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	roleService := services.NewRoleService(roleRepo, permissionRepo, auditRepo)
 	packageService := services.NewPackageService(packageRepo, auditRepo)
 	templateService := services.NewTemplateService(templateRepo, auditRepo)
+	featureService := services.NewFeatureService(featureRepo, auditRepo)
 
 	companySettingService := services.NewCompanySettingService(companySettingRepo, auditRepo)
 	blobService := blob.NewBlobService(cfg)
@@ -53,6 +55,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	roleHandler := handlers.NewRoleHandler(roleService)
 	packageHandler := handlers.NewPackageHandler(packageService)
 	templateHandler := handlers.NewTemplateHandler(templateService, blobService)
+	featureHandler := handlers.NewFeatureHandler(featureService)
 
 	companySettingHandler := handlers.NewCompanySettingHandler(companySettingService, blobService)
 	uploadHandler := handlers.NewUploadHandler(blobService, cfg)
@@ -187,7 +190,17 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		admin.DELETE("/templates/:id", templateHandler.DeleteTemplate)
 		admin.POST("/templates/:id/restore", middleware.SuperAdminOnly(), templateHandler.RestoreTemplate)
 		admin.DELETE("/templates/:id/force", middleware.SuperAdminOnly(), templateHandler.ForceDeleteTemplate)
+
+		// Features (Schema-Driven UI Master Data)
+		admin.GET("/features", featureHandler.GetAllFeatures)
+		admin.POST("/features", featureHandler.CreateFeature)
+		admin.GET("/features/:id", featureHandler.GetFeature)
+		admin.PATCH("/features/:id", featureHandler.UpdateFeature)
+		admin.DELETE("/features/:id", featureHandler.DeleteFeature)
 	}
+
+	// Public / Client Accessible Feature List
+	api.GET("/features", featureHandler.GetAllFeatures)
 
 	return r
 }

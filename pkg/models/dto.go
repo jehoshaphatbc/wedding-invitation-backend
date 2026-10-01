@@ -296,3 +296,43 @@ type PaymentWebhookRequest struct {
 	StatusCode        string `json:"status_code"`
 	SignatureKey      string `json:"signature_key"`
 }
+
+// Client Portal DTOs
+type UpdateClientInvitationRequest struct {
+	Title       *string                `json:"title,omitempty"`
+	Slug        *string                `json:"slug,omitempty"`
+	GroomData   map[string]interface{} `json:"groom_data,omitempty"`
+	BrideData   map[string]interface{} `json:"bride_data,omitempty"`
+	EventsData  interface{}            `json:"events_data,omitempty"`
+	StoryData   interface{}            `json:"story_data,omitempty"`
+	GalleryURLs []string               `json:"gallery_urls,omitempty"`
+}
+
+type ClientAuthVerifyResponse struct {
+	Order      ClientOrderSummary    `json:"order"`
+	Client     *ClientSummary        `json:"client,omitempty"`
+	Package    *ClientPackageSummary `json:"package,omitempty"`
+	Invitation *Invitation           `json:"invitation,omitempty"`
+}
+
+type ClientOrderSummary struct {
+	ID            uuid.UUID   `json:"id"`
+	InvoiceNumber string      `json:"invoice_number"`
+	Status        OrderStatus `json:"status"`
+	TotalAmount   float64     `json:"total_amount"`
+	FormToken     *string     `json:"form_token"`
+	ScannerToken  *string     `json:"scanner_token"`
+}
+
+type ClientSummary struct {
+	ID       uuid.UUID `json:"id"`
+	Name     string    `json:"name"`
+	Email    string    `json:"email"`
+	Whatsapp string    `json:"whatsapp"`
+}
+
+type ClientPackageSummary struct {
+	ID             uuid.UUID      `json:"id"`
+	Name           string         `json:"name"`
+	FeaturesConfig FeaturesConfig `json:"features_config"`
+}

@@ -14,6 +14,7 @@ type OrderRepository interface {
 	FindAll(page, perPage int, search, status string, isTrashed bool) ([]models.Order, int64, error)
 	FindByID(id uuid.UUID) (*models.Order, error)
 	FindByInvoiceNumber(invoice string) (*models.Order, error)
+	FindByFormToken(formToken string) (*models.Order, error)
 	Update(order *models.Order) error
 	Delete(id uuid.UUID) error
 	Restore(id uuid.UUID) error
@@ -77,6 +78,18 @@ func (r *orderRepository) FindByID(id uuid.UUID) (*models.Order, error) {
 func (r *orderRepository) FindByInvoiceNumber(invoice string) (*models.Order, error) {
 	var order models.Order
 	err := r.db.Preload("Client").Preload("Package").Where("invoice_number = ?", invoice).First(&order).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &order, nil
+}
+
+func (r *orderRepository) FindByFormToken(formToken string) (*models.Order, error) {
+	var order models.Order
+	err := r.db.Preload("Client").Preload("Package").Where("form_token = ?", formToken).First(&order).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil

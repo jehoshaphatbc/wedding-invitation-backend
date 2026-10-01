@@ -13,6 +13,7 @@ type InvitationRepository interface {
 	Create(invitation *models.Invitation) error
 	FindByOrderID(orderID uuid.UUID) (*models.Invitation, error)
 	FindByID(id uuid.UUID) (*models.Invitation, error)
+	Update(invitation *models.Invitation) error
 }
 
 type invitationRepository struct {
@@ -46,4 +47,8 @@ func (r *invitationRepository) FindByID(id uuid.UUID) (*models.Invitation, error
 		return nil, err
 	}
 	return &invitation, nil
+}
+
+func (r *invitationRepository) Update(invitation *models.Invitation) error {
+	return r.db.Save(invitation).Error
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/config"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/database"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/handlers"
+	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/middleware"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/repositories"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/services"
 )
@@ -193,6 +194,22 @@ func setupTestRouter(tx *gorm.DB) *gin.Engine {
 	api.POST("/seeder", seederHandler.Execute)
 	r.GET("/api/seeder", seederHandler.Execute)
 	r.POST("/api/seeder", seederHandler.Execute)
+
+	// Client Portal
+	clientPortalService := services.NewClientPortalService(orderRepo, invitationRepo, auditRepo)
+	clientPortalHandler := handlers.NewClientPortalHandler(clientPortalService, orderRepo)
+
+	clientPortal := api.Group("/client")
+	{
+		clientPortal.GET("/auth-verify", clientPortalHandler.AuthVerify)
+		clientPortal.PUT("/invitation", middleware.ClientFormTokenMiddleware(orderRepo), clientPortalHandler.UpdateInvitation)
+	}
+
+	clientPortalAlias := r.Group("/api/client")
+	{
+		clientPortalAlias.GET("/auth-verify", clientPortalHandler.AuthVerify)
+		clientPortalAlias.PUT("/invitation", middleware.ClientFormTokenMiddleware(orderRepo), clientPortalHandler.UpdateInvitation)
+	}
 
 	return r
 }

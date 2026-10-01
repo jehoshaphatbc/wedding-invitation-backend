@@ -304,16 +304,21 @@ func (o *Order) BeforeCreate(tx *gorm.DB) error {
 }
 
 type Invitation struct {
-	ID        uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
-	OrderID   uuid.UUID      `gorm:"type:uuid;not null;uniqueIndex" json:"order_id"`
-	ClientID  uuid.UUID      `gorm:"type:uuid;not null;index" json:"client_id"`
-	PackageID uuid.UUID      `gorm:"type:uuid;not null;index" json:"package_id"`
-	Title     string         `gorm:"type:varchar(255);not null;default:'Draft Undangan'" json:"title"`
-	Slug      *string        `gorm:"type:varchar(255);uniqueIndex" json:"slug,omitempty"`
-	Status    string         `gorm:"type:varchar(50);not null;default:'draft'" json:"status"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	ID          uuid.UUID              `gorm:"type:uuid;primaryKey" json:"id"`
+	OrderID     uuid.UUID              `gorm:"type:uuid;not null;uniqueIndex" json:"order_id"`
+	ClientID    uuid.UUID              `gorm:"type:uuid;not null;index" json:"client_id"`
+	PackageID   uuid.UUID              `gorm:"type:uuid;not null;index" json:"package_id"`
+	Title       string                 `gorm:"type:varchar(255);not null;default:'Draft Undangan'" json:"title"`
+	Slug        *string                `gorm:"type:varchar(255);uniqueIndex" json:"slug,omitempty"`
+	Status      string                 `gorm:"type:varchar(50);not null;default:'draft'" json:"status"`
+	GroomData   map[string]interface{} `gorm:"type:jsonb;serializer:json" json:"groom_data,omitempty"`
+	BrideData   map[string]interface{} `gorm:"type:jsonb;serializer:json" json:"bride_data,omitempty"`
+	EventsData  interface{}            `gorm:"type:jsonb;serializer:json" json:"events_data,omitempty"`
+	StoryData   interface{}            `gorm:"type:jsonb;serializer:json" json:"story_data,omitempty"`
+	GalleryURLs []string               `gorm:"type:jsonb;serializer:json" json:"gallery_urls,omitempty"`
+	CreatedAt   time.Time              `json:"created_at"`
+	UpdatedAt   time.Time              `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt         `gorm:"index" json:"-"`
 
 	Order   *Order   `gorm:"foreignKey:OrderID" json:"order,omitempty"`
 	Client  *Client  `gorm:"foreignKey:ClientID" json:"client,omitempty"`

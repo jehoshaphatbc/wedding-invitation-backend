@@ -34,6 +34,9 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	packageRepo := repositories.NewPackageRepository(db)
 	templateRepo := repositories.NewTemplateRepository(db)
 	featureRepo := repositories.NewFeatureRepository(db)
+	clientRepo := repositories.NewClientRepository(db)
+	orderRepo := repositories.NewOrderRepository(db)
+	invitationRepo := repositories.NewInvitationRepository(db)
 
 	permissionRepo := repositories.NewPermissionRepository(db)
 	profileRepo := repositories.NewProfileRepository(db)
@@ -46,6 +49,8 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	packageService := services.NewPackageService(packageRepo, auditRepo)
 	templateService := services.NewTemplateService(templateRepo, auditRepo)
 	featureService := services.NewFeatureService(featureRepo, auditRepo)
+	clientService := services.NewClientService(clientRepo, auditRepo)
+	orderService := services.NewOrderService(orderRepo, clientRepo, packageRepo, invitationRepo, auditRepo)
 
 	companySettingService := services.NewCompanySettingService(companySettingRepo, auditRepo)
 	blobService := blob.NewBlobService(cfg)
@@ -56,6 +61,8 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	packageHandler := handlers.NewPackageHandler(packageService)
 	templateHandler := handlers.NewTemplateHandler(templateService, blobService)
 	featureHandler := handlers.NewFeatureHandler(featureService)
+	clientHandler := handlers.NewClientHandler(clientService)
+	orderHandler := handlers.NewOrderHandler(orderService)
 
 	companySettingHandler := handlers.NewCompanySettingHandler(companySettingService, blobService)
 	uploadHandler := handlers.NewUploadHandler(blobService, cfg)
@@ -197,10 +204,46 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		admin.GET("/features/:id", featureHandler.GetFeature)
 		admin.PATCH("/features/:id", featureHandler.UpdateFeature)
 		admin.DELETE("/features/:id", featureHandler.DeleteFeature)
+
+		// Clients
+		admin.GET("/clients", clientHandler.GetAllClients)
+		admin.POST("/clients/bulk-delete", clientHandler.BulkDeleteClients)
+		admin.POST("/clients/bulk-restore", middleware.SuperAdminOnly(), clientHandler.BulkRestoreClients)
+		admin.POST("/clients/bulk-force-delete", middleware.SuperAdminOnly(), clientHandler.BulkForceDeleteClients)
+		admin.GET("/clients/trash", middleware.SuperAdminOnly(), clientHandler.GetTrashedClients)
+		admin.POST("/clients", clientHandler.CreateClient)
+		admin.GET("/clients/:id", clientHandler.GetClient)
+		admin.PUT("/clients/:id", clientHandler.UpdateClient)
+		admin.PATCH("/clients/:id", clientHandler.UpdateClient)
+		admin.DELETE("/clients/:id", clientHandler.DeleteClient)
+		admin.POST("/clients/:id/restore", middleware.SuperAdminOnly(), clientHandler.RestoreClient)
+		admin.POST("/clients/restore", middleware.SuperAdminOnly(), clientHandler.BulkRestoreClients)
+		admin.DELETE("/clients/:id/force", middleware.SuperAdminOnly(), clientHandler.ForceDeleteClient)
+
+		// Orders
+		admin.GET("/orders", orderHandler.GetAllOrders)
+		admin.POST("/orders/bulk-delete", orderHandler.BulkDeleteOrders)
+		admin.POST("/orders/bulk-restore", middleware.SuperAdminOnly(), orderHandler.BulkRestoreOrders)
+		admin.POST("/orders/bulk-force-delete", middleware.SuperAdminOnly(), orderHandler.BulkForceDeleteOrders)
+		admin.GET("/orders/trash", middleware.SuperAdminOnly(), orderHandler.GetTrashedOrders)
+		admin.GET("/orders/:id", orderHandler.GetOrder)
+		admin.PUT("/orders/:id", orderHandler.UpdateOrder)
+		admin.PATCH("/orders/:id", orderHandler.UpdateOrder)
+		admin.DELETE("/orders/:id", orderHandler.DeleteOrder)
+		admin.POST("/orders/:id/restore", middleware.SuperAdminOnly(), orderHandler.RestoreOrder)
+		admin.POST("/orders/restore", middleware.SuperAdminOnly(), orderHandler.BulkRestoreOrders)
+		admin.DELETE("/orders/:id/force", middleware.SuperAdminOnly(), orderHandler.ForceDeleteOrder)
 	}
 
 	// Public / Client Accessible Feature List
 	api.GET("/features", featureHandler.GetAllFeatures)
+
+	// Public Checkout & Webhooks (accessible via both /api/v1 and /api prefix)
+	api.POST("/checkout", orderHandler.Checkout)
+	api.POST("/webhook/payment", orderHandler.PaymentWebhook)
+
+	r.POST("/api/checkout", orderHandler.Checkout)
+	r.POST("/api/webhook/payment", orderHandler.PaymentWebhook)
 
 	return r
 }

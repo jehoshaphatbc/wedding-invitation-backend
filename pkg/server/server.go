@@ -66,13 +66,14 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 
 	companySettingHandler := handlers.NewCompanySettingHandler(companySettingService, blobService)
 	uploadHandler := handlers.NewUploadHandler(blobService, cfg)
+	seederHandler := handlers.NewSeederHandler(db, cfg)
 
 	r := gin.Default()
 
 	r.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
+		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Seeder-Secret")
 		c.Header("Access-Control-Max-Age", "86400")
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
@@ -244,6 +245,12 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 
 	r.POST("/api/checkout", orderHandler.Checkout)
 	r.POST("/api/webhook/payment", orderHandler.PaymentWebhook)
+
+	// HTTP Seeder Endpoint (protected by SEEDER_SECRET)
+	api.GET("/seeder", seederHandler.Execute)
+	api.POST("/seeder", seederHandler.Execute)
+	r.GET("/api/seeder", seederHandler.Execute)
+	r.POST("/api/seeder", seederHandler.Execute)
 
 	return r
 }

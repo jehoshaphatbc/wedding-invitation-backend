@@ -72,9 +72,22 @@ func setupTestRouter(tx *gorm.DB) *gin.Engine {
 	packageService := services.NewPackageService(packageRepo, auditRepo)
 	packageHandler := handlers.NewPackageHandler(packageService)
 
+	clientRepo := repositories.NewClientRepository(tx)
+	clientService := services.NewClientService(clientRepo, auditRepo)
+	clientHandler := handlers.NewClientHandler(clientService)
+
+	orderRepo := repositories.NewOrderRepository(tx)
+	invitationRepo := repositories.NewInvitationRepository(tx)
+	orderService := services.NewOrderService(orderRepo, clientRepo, packageRepo, invitationRepo, auditRepo)
+	orderHandler := handlers.NewOrderHandler(orderService)
+
 	api := r.Group("/api/v1")
 	{
 		api.GET("/features", featureHandler.GetAllFeatures)
+
+		// Public Checkout & Webhooks
+		api.POST("/checkout", orderHandler.Checkout)
+		api.POST("/webhook/payment", orderHandler.PaymentWebhook)
 
 		admin := api.Group("/admin")
 		// Simulate authenticated admin context
@@ -97,8 +110,41 @@ func setupTestRouter(tx *gorm.DB) *gin.Engine {
 			admin.GET("/packages/:id", packageHandler.GetPackage)
 			admin.PATCH("/packages/:id", packageHandler.UpdatePackage)
 			admin.DELETE("/packages/:id", packageHandler.DeletePackage)
+
+			// Clients
+			admin.GET("/clients", clientHandler.GetAllClients)
+			admin.POST("/clients/bulk-delete", clientHandler.BulkDeleteClients)
+			admin.POST("/clients/bulk-restore", clientHandler.BulkRestoreClients)
+			admin.POST("/clients/bulk-force-delete", clientHandler.BulkForceDeleteClients)
+			admin.GET("/clients/trash", clientHandler.GetTrashedClients)
+			admin.POST("/clients", clientHandler.CreateClient)
+			admin.GET("/clients/:id", clientHandler.GetClient)
+			admin.PUT("/clients/:id", clientHandler.UpdateClient)
+			admin.PATCH("/clients/:id", clientHandler.UpdateClient)
+			admin.DELETE("/clients/:id", clientHandler.DeleteClient)
+			admin.POST("/clients/:id/restore", clientHandler.RestoreClient)
+			admin.POST("/clients/restore", clientHandler.BulkRestoreClients)
+			admin.DELETE("/clients/:id/force", clientHandler.ForceDeleteClient)
+
+			// Orders
+			admin.GET("/orders", orderHandler.GetAllOrders)
+			admin.POST("/orders/bulk-delete", orderHandler.BulkDeleteOrders)
+			admin.POST("/orders/bulk-restore", orderHandler.BulkRestoreOrders)
+			admin.POST("/orders/bulk-force-delete", orderHandler.BulkForceDeleteOrders)
+			admin.GET("/orders/trash", orderHandler.GetTrashedOrders)
+			admin.GET("/orders/:id", orderHandler.GetOrder)
+			admin.PUT("/orders/:id", orderHandler.UpdateOrder)
+			admin.PATCH("/orders/:id", orderHandler.UpdateOrder)
+			admin.DELETE("/orders/:id", orderHandler.DeleteOrder)
+			admin.POST("/orders/:id/restore", orderHandler.RestoreOrder)
+			admin.POST("/orders/restore", orderHandler.BulkRestoreOrders)
+			admin.DELETE("/orders/:id/force", orderHandler.ForceDeleteOrder)
 		}
 	}
+
+	// Public root-level aliases
+	r.POST("/api/checkout", orderHandler.Checkout)
+	r.POST("/api/webhook/payment", orderHandler.PaymentWebhook)
 
 	return r
 }

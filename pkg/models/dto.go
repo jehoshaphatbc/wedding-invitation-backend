@@ -246,3 +246,54 @@ func ToCompanySettingResponse(setting *CompanySetting) CompanySettingResponse {
 		LogoSquareURL: setting.LogoSquareURL,
 	}
 }
+
+// Client DTOs
+type CreateClientRequest struct {
+	Name     string `json:"name" binding:"required,max=255"`
+	Email    string `json:"email" binding:"required,email,max=255"`
+	Whatsapp string `json:"whatsapp" binding:"required,max=50"`
+}
+
+type UpdateClientRequest struct {
+	Name     *string `json:"name" binding:"omitempty,max=255"`
+	Email    *string `json:"email" binding:"omitempty,email,max=255"`
+	Whatsapp *string `json:"whatsapp" binding:"omitempty,max=50"`
+}
+
+type ClientBulkRequest struct {
+	IDs []uuid.UUID `json:"ids" binding:"required,min=1"`
+}
+
+// Order DTOs
+type CreateOrderRequest struct {
+	ClientID  uuid.UUID    `json:"client_id" binding:"required"`
+	PackageID uuid.UUID    `json:"package_id" binding:"required"`
+	Status    *OrderStatus `json:"status" binding:"omitempty,oneof=unpaid paid expired"`
+}
+
+type UpdateOrderRequest struct {
+	Status      *OrderStatus `json:"status" binding:"omitempty,oneof=unpaid paid expired"`
+	TotalAmount *float64     `json:"total_amount" binding:"omitempty,gte=0"`
+}
+
+type OrderBulkRequest struct {
+	IDs []uuid.UUID `json:"ids" binding:"required,min=1"`
+}
+
+// Public Checkout DTO
+type PublicCheckoutRequest struct {
+	Name      string    `json:"name" binding:"required,max=255"`
+	Email     string    `json:"email" binding:"required,email,max=255"`
+	Whatsapp  string    `json:"whatsapp" binding:"required,max=50"`
+	PackageID uuid.UUID `json:"package_id" binding:"required"`
+}
+
+// Payment Webhook DTO
+type PaymentWebhookRequest struct {
+	OrderID           string `json:"order_id"`
+	TransactionStatus string `json:"transaction_status"`
+	Status            string `json:"status"`
+	StatusCode        string `json:"status_code"`
+	SignatureKey      string `json:"signature_key"`
+}
+

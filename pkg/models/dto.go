@@ -109,6 +109,20 @@ type UpdatePermissionRequest struct {
 	Description *string `json:"description"`
 }
 
+type CreateFeatureRequest struct {
+	FeatureKey   string `json:"feature_key" binding:"required,max=100"`
+	FeatureName  string `json:"feature_name" binding:"required,max=255"`
+	InputType    string `json:"input_type" binding:"required,oneof=boolean number"`
+	DefaultValue string `json:"default_value" binding:"required,max=255"`
+}
+
+type UpdateFeatureRequest struct {
+	FeatureKey   *string `json:"feature_key" binding:"omitempty,max=100"`
+	FeatureName  *string `json:"feature_name" binding:"omitempty,max=255"`
+	InputType    *string `json:"input_type" binding:"omitempty,oneof=boolean number"`
+	DefaultValue *string `json:"default_value" binding:"omitempty,max=255"`
+}
+
 type UserResponse struct {
 	ID              uuid.UUID      `json:"id"`
 	Name            string         `json:"name"`

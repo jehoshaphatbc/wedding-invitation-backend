@@ -9,6 +9,7 @@ import (
 
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/config"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/models"
+	"github.com/jehoshaphatbc/wedding-invitation-backend/seeds"
 )
 
 func Connect(cfg *config.Config) (*gorm.DB, error) {
@@ -38,10 +39,14 @@ func Connect(cfg *config.Config) (*gorm.DB, error) {
 		&models.AuditLog{},
 		&models.Package{},
 		&models.Template{},
+		&models.Feature{},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to migrate database: %w", err)
 	}
+
+	// Auto-seed default features if table is empty
+	seeds.SeedFeatures(db)
 
 	fmt.Println("Database connected and migrated successfully")
 

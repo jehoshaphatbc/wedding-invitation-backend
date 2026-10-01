@@ -237,3 +237,22 @@ func (t *Template) BeforeCreate(tx *gorm.DB) error {
 	}
 	return nil
 }
+
+type Feature struct {
+	ID           uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
+	FeatureKey   string         `gorm:"type:varchar(100);uniqueIndex;not null" json:"feature_key"`
+	FeatureName  string         `gorm:"type:varchar(255);not null" json:"feature_name"`
+	InputType    string         `gorm:"type:varchar(50);not null" json:"input_type"`
+	DefaultValue string         `gorm:"type:varchar(255);not null" json:"default_value"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+func (f *Feature) BeforeCreate(tx *gorm.DB) error {
+	if f.ID == uuid.Nil {
+		f.ID = uuid.New()
+	}
+	return nil
+}
+

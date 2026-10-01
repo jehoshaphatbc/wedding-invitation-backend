@@ -27,7 +27,7 @@ func main() {
 	seeds.Seed(db, cfg.SuperAdminName, cfg.SuperAdminEmail, cfg.SuperAdminPassword)
 
 	// 2. Seed hierarchical dummy data (Packages, Clients, Orders, Invitations, Guests)
-	if err := seeds.SeedDummyData(db); err != nil {
+	if _, err := seeds.SeedDummyData(db); err != nil {
 		log.Fatalf("Database seeding failed: %v", err)
 	}
 

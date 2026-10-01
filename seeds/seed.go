@@ -95,6 +95,9 @@ func Seed(db *gorm.DB, superAdminName, superAdminEmail, superAdminPassword strin
 	seedSuperAdmin(db, superAdminName, superAdminEmail, superAdminPassword)
 	seedCompanySetting(db)
 	SeedFeatures(db)
+	if _, err := SeedDummyData(db); err != nil {
+		fmt.Printf("Warning: failed to seed dummy data: %v\n", err)
+	}
 }
 
 func SeedFeatures(db *gorm.DB) {

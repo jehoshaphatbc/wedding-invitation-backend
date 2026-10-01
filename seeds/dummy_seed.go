@@ -2,28 +2,27 @@ package seeds
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/models"
 )
 
-func SeedDummyData(db *gorm.DB) error {
-	log.Println("==> Starting Hierarchical Database Seeder for Dummy Data...")
+func strPtr(s string) *string {
+	return &s
+}
 
-	// ---------------------------------------------------------
-	// 1. SEED PACKAGES
-	// ---------------------------------------------------------
-	log.Println("--> 1. Seeding Packages (Silver, Gold, Platinum)...")
-
-	packagesData := []struct {
-		Name           string
-		Price          float64
-		FeaturesConfig models.FeaturesConfig
-	}{
+// SeedDummyData populates packages, clients, orders, invitations, and guests.
+// It uses idempotent queries and ON CONFLICT DO NOTHING so that it can be safely run
+// automatically on startup/migration or via the HTTP seeder endpoint.
+func SeedDummyData(tx *gorm.DB) (map[string]int, error) {
+	// ------------------------------------------------------------------
+	// STEP 1: PACKAGES (3 Data: Silver, Gold, Platinum with features_config)
+	// ------------------------------------------------------------------
+	packagesData := []models.Package{
 		{
 			Name:  "Paket Silver",
 			Price: 250000,
@@ -72,292 +71,199 @@ func SeedDummyData(db *gorm.DB) error {
 	}
 
 	packages := make([]models.Package, len(packagesData))
-	for i, pd := range packagesData {
-		var pkg models.Package
-		err := db.Where("name = ?", pd.Name).First(&pkg).Error
-		if err != nil {
-			pkg = models.Package{
-				Name:           pd.Name,
-				Price:          pd.Price,
-				FeaturesConfig: pd.FeaturesConfig,
-			}
-			if err := db.Create(&pkg).Error; err != nil {
-				return fmt.Errorf("failed to create package %s: %w", pd.Name, err)
-			}
-			log.Printf("   Created package: %s (Rp %.0f)", pkg.Name, pkg.Price)
-		} else {
-			// Update features_config to match desired seed
-			pkg.Price = pd.Price
-			pkg.FeaturesConfig = pd.FeaturesConfig
-			db.Save(&pkg)
-			log.Printf("   Found existing package: %s", pkg.Name)
+	for i, pkg := range packagesData {
+		var persistedPkg models.Package
+		if err := tx.Where("name = ?", pkg.Name).First(&persistedPkg).Error; err == nil {
+			// Package already exists, reuse it
+			packages[i] = persistedPkg
+			continue
 		}
-		packages[i] = pkg
+
+		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&pkg).Error; err != nil {
+			return nil, fmt.Errorf("failed to seed package %s: %w", pkg.Name, err)
+		}
+
+		if err := tx.Where("name = ?", pkg.Name).First(&persistedPkg).Error; err != nil {
+			return nil, fmt.Errorf("failed to fetch package ID for %s: %w", pkg.Name, err)
+		}
+		packages[i] = persistedPkg
 	}
 
-	// ---------------------------------------------------------
-	// 2. SEED CLIENTS (10 Realistic Indonesian Clients)
-	// ---------------------------------------------------------
-	log.Println("--> 2. Seeding 10 Indonesian Clients...")
-
-	clientsData := []struct {
-		Name     string
-		Email    string
-		Whatsapp string
-	}{
-		{"Raden Budi Santoso", "budi.santoso@gmail.com", "081298765432"},
-		{"Siti Nurhaliza", "siti.nurhaliza@gmail.com", "085712345678"},
-		{"Arya Pratama", "arya.pratama@gmail.com", "087811223344"},
-		{"Dewi Lestari", "dewi.lestari@gmail.com", "081388776655"},
-		{"Dimas Setiawan", "dimas.setiawan@gmail.com", "082199887766"},
-		{"Anisa Rahmawati", "anisa.rahmawati@gmail.com", "085644332211"},
-		{"Rizky Ramadhan", "rizky.ramadhan@gmail.com", "081233445566"},
-		{"Putri Ayu Wulandari", "putri.wulandari@gmail.com", "087755667788"},
-		{"Fajar Hidayat", "fajar.hidayat@gmail.com", "081922334455"},
-		{"Mega Permata", "mega.permata@gmail.com", "085211223344"},
+	// ------------------------------------------------------------------
+	// STEP 2: CLIENTS (3 Data: Indonesian Local Names & Emails)
+	// ------------------------------------------------------------------
+	clientsData := []models.Client{
+		{
+			Name:     "Budi Pratama",
+			Email:    "budi.pratama@gmail.com",
+			Whatsapp: "081298765432",
+		},
+		{
+			Name:     "Siti Nurhaliza",
+			Email:    "siti.nurhaliza@gmail.com",
+			Whatsapp: "085712345678",
+		},
+		{
+			Name:     "Dimas Setiawan",
+			Email:    "dimas.setiawan@gmail.com",
+			Whatsapp: "087811223344",
+		},
 	}
 
 	clients := make([]models.Client, len(clientsData))
-	for i, cd := range clientsData {
-		var client models.Client
-		err := db.Where("email = ?", cd.Email).First(&client).Error
-		if err != nil {
-			client = models.Client{
-				Name:     cd.Name,
-				Email:    cd.Email,
-				Whatsapp: cd.Whatsapp,
-			}
-			if err := db.Create(&client).Error; err != nil {
-				return fmt.Errorf("failed to create client %s: %w", cd.Name, err)
-			}
-			log.Printf("   Created client: %s (%s)", client.Name, client.Email)
-		} else {
-			log.Printf("   Found existing client: %s", client.Name)
+	for i, cl := range clientsData {
+		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&cl).Error; err != nil {
+			return nil, fmt.Errorf("failed to seed clients: %w", err)
 		}
-		clients[i] = client
+
+		var persistedClient models.Client
+		if err := tx.Where("email = ?", cl.Email).First(&persistedClient).Error; err != nil {
+			return nil, fmt.Errorf("failed to fetch client by email %s: %w", cl.Email, err)
+		}
+		clients[i] = persistedClient
 	}
 
-	// ---------------------------------------------------------
-	// 3. SEED ORDERS (15 Orders: 5 Unpaid, 8 Paid, 2 Expired)
-	// ---------------------------------------------------------
-	log.Println("--> 3. Seeding 15 Orders (5 Unpaid, 8 Paid, 2 Expired)...")
-
-	orderPlan := []struct {
-		InvoiceSuffix string
+	// ------------------------------------------------------------------
+	// STEP 3: ORDERS (5 Data: 3 Paid with tokens, 2 Unpaid)
+	// ------------------------------------------------------------------
+	ordersData := []struct {
+		InvoiceNumber string
 		ClientIdx     int
 		PackageIdx    int
+		Amount        float64
 		Status        models.OrderStatus
+		IsPaid        bool
 	}{
-		// 8 Paid Orders
-		{"0001", 0, 1, models.OrderStatusPaid}, // Budi, Gold -> Paid (will have published invitation budi-ani)
-		{"0003", 2, 2, models.OrderStatusPaid}, // Arya, Platinum -> Paid (will have published invitation arya-dewi)
-		{"0004", 3, 1, models.OrderStatusPaid}, // Dewi, Gold -> Paid
-		{"0006", 5, 1, models.OrderStatusPaid}, // Anisa, Gold -> Paid
-		{"0007", 6, 2, models.OrderStatusPaid}, // Rizky, Platinum -> Paid
-		{"0009", 8, 1, models.OrderStatusPaid}, // Fajar, Gold -> Paid
-		{"0010", 9, 2, models.OrderStatusPaid}, // Mega, Platinum -> Paid
-		{"0011", 0, 2, models.OrderStatusPaid}, // Budi (2nd order), Platinum -> Paid
-
-		// 5 Unpaid Orders
-		{"0002", 1, 0, models.OrderStatusUnpaid}, // Siti, Silver -> Unpaid
-		{"0005", 4, 0, models.OrderStatusUnpaid}, // Dimas, Silver -> Unpaid
-		{"0012", 1, 1, models.OrderStatusUnpaid}, // Siti, Gold -> Unpaid
-		{"0013", 2, 0, models.OrderStatusUnpaid}, // Arya, Silver -> Unpaid
-		{"0014", 3, 2, models.OrderStatusUnpaid}, // Dewi, Platinum -> Unpaid
-
-		// 2 Expired Orders
-		{"0008", 7, 0, models.OrderStatusExpired}, // Putri, Silver -> Expired
-		{"0015", 4, 1, models.OrderStatusExpired}, // Dimas, Gold -> Expired
+		{"INV-SEED-001", 0, 0, 250000, models.OrderStatusPaid, true},
+		{"INV-SEED-002", 1, 1, 450000, models.OrderStatusPaid, true},
+		{"INV-SEED-003", 2, 2, 750000, models.OrderStatusPaid, true},
+		{"INV-SEED-004", 0, 1, 450000, models.OrderStatusUnpaid, false},
+		{"INV-SEED-005", 1, 0, 250000, models.OrderStatusUnpaid, false},
 	}
 
-	paidOrders := make([]models.Order, 0)
+	var paidOrders []models.Order
+	for _, o := range ordersData {
+		var formToken, scannerToken string
+		paymentURL := fmt.Sprintf("https://app.midtrans.com/snap/v2/vtweb/mock-%s", o.InvoiceNumber)
 
-	for _, op := range orderPlan {
-		client := clients[op.ClientIdx]
-		pkg := packages[op.PackageIdx]
-		invNum := fmt.Sprintf("INV-20261001-%s", op.InvoiceSuffix)
-
-		var order models.Order
-		err := db.Where("invoice_number = ?", invNum).First(&order).Error
-		if err != nil {
-			var formToken, scannerToken string
-			if op.Status == models.OrderStatusPaid {
-				formToken = "form_" + uuid.New().String()
-				scannerToken = "scan_" + uuid.New().String()
-			}
-
-			order = models.Order{
-				InvoiceNumber: invNum,
-				ClientID:      client.ID,
-				PackageID:     pkg.ID,
-				TotalAmount:   pkg.Price,
-				Status:        op.Status,
-				PaymentURL:    fmt.Sprintf("https://app.sandbox.midtrans.com/snap/v2/vtweb/%s", uuid.New().String()),
-				FormToken:     formToken,
-				ScannerToken:  scannerToken,
-			}
-
-			if err := db.Create(&order).Error; err != nil {
-				return fmt.Errorf("failed to create order %s: %w", invNum, err)
-			}
-			log.Printf("   Created order: %s [%s] Client: %s, Pkg: %s", order.InvoiceNumber, order.Status, client.Name, pkg.Name)
-		} else {
-			log.Printf("   Found existing order: %s [%s]", order.InvoiceNumber, order.Status)
+		if o.IsPaid {
+			formToken = uuid.New().String()
+			scannerToken = uuid.New().String()
 		}
 
-		if op.Status == models.OrderStatusPaid {
-			paidOrders = append(paidOrders, order)
+		order := models.Order{
+			InvoiceNumber: o.InvoiceNumber,
+			ClientID:      clients[o.ClientIdx].ID,
+			PackageID:     packages[o.PackageIdx].ID,
+			TotalAmount:   o.Amount,
+			Status:        o.Status,
+			PaymentURL:    paymentURL,
+			FormToken:     formToken,
+			ScannerToken:  scannerToken,
+		}
+
+		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&order).Error; err != nil {
+			return nil, fmt.Errorf("failed to seed order %s: %w", o.InvoiceNumber, err)
+		}
+
+		var persistedOrder models.Order
+		if err := tx.Where("invoice_number = ?", o.InvoiceNumber).First(&persistedOrder).Error; err != nil {
+			return nil, fmt.Errorf("failed to fetch order %s: %w", o.InvoiceNumber, err)
+		}
+
+		if persistedOrder.Status == models.OrderStatusPaid {
+			paidOrders = append(paidOrders, persistedOrder)
 		}
 	}
 
-	// ---------------------------------------------------------
-	// 4. SEED INVITATIONS (8 Invitations for Paid Orders)
-	// ---------------------------------------------------------
-	log.Println("--> 4. Seeding Invitations for Paid Orders (2 Published, 6 Draft)...")
+	// ------------------------------------------------------------------
+	// STEP 4: INVITATIONS (3 Data linked to Paid Orders)
+	// ------------------------------------------------------------------
+	slug1 := "budi-ani"
+	slug2 := "siti-rizky"
+	slug3 := "dimas-putri"
 
-	var publishedInvitation *models.Invitation
+	invitationsData := []struct {
+		Title string
+		Slug  *string
+	}{
+		{"The Wedding of Budi & Ani", &slug1},
+		{"The Wedding of Siti & Rizky", &slug2},
+		{"The Wedding of Dimas & Putri", &slug3},
+	}
 
-	for i, order := range paidOrders {
-		var invitation models.Invitation
-		err := db.Where("order_id = ?", order.ID).First(&invitation).Error
-		if err != nil {
-			var status string
-			var slug *string
-			var title string
+	var targetInvitationID uuid.UUID
 
+	for i, po := range paidOrders {
+		if i >= len(invitationsData) {
+			break
+		}
+		invData := invitationsData[i]
+		slugCandidate := *invData.Slug
+		var existingSlug models.Invitation
+		if err := tx.Where("slug = ? AND order_id != ?", slugCandidate, po.ID).First(&existingSlug).Error; err == nil {
+			slugCandidate = fmt.Sprintf("%s-auto", slugCandidate)
+		}
+
+		inv := models.Invitation{
+			OrderID:   po.ID,
+			ClientID:  po.ClientID,
+			PackageID: po.PackageID,
+			Title:     invData.Title,
+			Slug:      &slugCandidate,
+			Status:    "published",
+		}
+
+		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&inv).Error; err != nil {
+			return nil, fmt.Errorf("failed to seed invitation: %w", err)
+		}
+
+		var persistedInv models.Invitation
+		if err := tx.Where("order_id = ?", po.ID).First(&persistedInv).Error; err == nil {
 			if i == 0 {
-				// Published Invitation 1
-				status = "published"
-				s := "budi-ani"
-				slug = &s
-				title = "The Wedding of Budi & Ani"
-			} else if i == 1 {
-				// Published Invitation 2
-				status = "published"
-				s := "arya-dewi"
-				slug = &s
-				title = "The Wedding of Arya & Dewi"
-			} else {
-				// Draft Invitations
-				status = "draft"
-				title = fmt.Sprintf("Draft Undangan Pernikahan #%d", i+1)
-			}
-
-			invitation = models.Invitation{
-				OrderID:   order.ID,
-				ClientID:  order.ClientID,
-				PackageID: order.PackageID,
-				Title:     title,
-				Slug:      slug,
-				Status:    status,
-			}
-
-			if err := db.Create(&invitation).Error; err != nil {
-				return fmt.Errorf("failed to create invitation for order %s: %w", order.InvoiceNumber, err)
-			}
-			log.Printf("   Created invitation: %s (Status: %s, Slug: %v)", invitation.Title, invitation.Status, slug)
-		} else {
-			log.Printf("   Found existing invitation: %s", invitation.Title)
-		}
-
-		if invitation.Slug != nil && *invitation.Slug == "budi-ani" {
-			publishedInvitation = &invitation
-		}
-	}
-
-	// Fallback to first invitation if budi-ani pointer wasn't set
-	if publishedInvitation == nil && len(paidOrders) > 0 {
-		var inv models.Invitation
-		if err := db.Where("status = ?", "published").First(&inv).Error; err == nil {
-			publishedInvitation = &inv
-		}
-	}
-
-	// ---------------------------------------------------------
-	// 5. SEED GUESTS (30 Guests for 1 Published Invitation)
-	// ---------------------------------------------------------
-	if publishedInvitation != nil {
-		log.Printf("--> 5. Seeding 30 Guests for Invitation ID: %s (Slug: %v)...", publishedInvitation.ID, publishedInvitation.Slug)
-
-		guestSeedData := []struct {
-			Name             string
-			Phone            string
-			RSVPStatus       string
-			ActualAttendance bool
-		}{
-			// 10 'hadir' (5 actual_attendance: true, 5 actual_attendance: false)
-			{"Hendra Gunawan", "081211112222", "hadir", true},
-			{"Eko Prasetyo", "081222223333", "hadir", true},
-			{"Bambang Suryono", "081233334444", "hadir", true},
-			{"Agus Wijaya", "081244445555", "hadir", true},
-			{"Dian Sastrowardoyo", "081255556666", "hadir", true},
-			{"Tri Haryanto", "081266667777", "hadir", false},
-			{"Wahyu Wibowo", "081277778888", "hadir", false},
-			{"Sri Wahyuni", "081288889999", "hadir", false},
-			{"Indah Permatasari", "081299990000", "hadir", false},
-			{"Bayu Nugroho", "081311112222", "hadir", false},
-
-			// 5 'tidak_hadir' (all actual_attendance: false)
-			{"Rina Nose", "081322223333", "tidak_hadir", false},
-			{"Doni Kusuma", "081333334444", "tidak_hadir", false},
-			{"Maya Safira", "081344445555", "tidak_hadir", false},
-			{"Gilang Ramadhan", "081355556666", "tidak_hadir", false},
-			{"Tari Melinda", "081366667777", "tidak_hadir", false},
-
-			// 15 'pending' (all actual_attendance: false)
-			{"Aditya Pratama", "081377778888", "pending", false},
-			{"Bagus Triadi", "081388889999", "pending", false},
-			{"Citra Kirana", "081399990000", "pending", false},
-			{"Danang Sutrisno", "081411112222", "pending", false},
-			{"Erwin Saputra", "081422223333", "pending", false},
-			{"Farhan Alamsyah", "081433334444", "pending", false},
-			{"Gita Gutawa", "081444445555", "pending", false},
-			{"Hesti Purwadinata", "081455556666", "pending", false},
-			{"Irfan Hakim", "081466667777", "pending", false},
-			{"Joko Widodo", "081477778888", "pending", false},
-			{"Kartika Sari", "081488889999", "pending", false},
-			{"Lukman Sardi", "081499990000", "pending", false},
-			{"Maulana Malik", "081511112222", "pending", false},
-			{"Nina Zatulini", "081522223333", "pending", false},
-			{"Oscar Lawalata", "081533334444", "pending", false},
-		}
-
-		now := time.Now().Add(-2 * time.Hour) // Attended 2 hours ago
-
-		for i, gd := range guestSeedData {
-			qrToken := fmt.Sprintf("QR-%s-%02d", publishedInvitation.ID.String()[:8], i+1)
-
-			var guest models.Guest
-			err := db.Where("qr_token = ?", qrToken).First(&guest).Error
-			if err != nil {
-				phone := gd.Phone
-				var attTime *time.Time
-				if gd.ActualAttendance {
-					tTime := now.Add(time.Duration(i*5) * time.Minute)
-					attTime = &tTime
-				}
-
-				guest = models.Guest{
-					InvitationID:     publishedInvitation.ID,
-					Name:             gd.Name,
-					Phone:            &phone,
-					Pax:              1,
-					QRToken:          qrToken,
-					RSVPStatus:       gd.RSVPStatus,
-					ActualAttendance: gd.ActualAttendance,
-					AttendanceTime:   attTime,
-				}
-
-				if err := db.Create(&guest).Error; err != nil {
-					return fmt.Errorf("failed to create guest %s: %w", gd.Name, err)
-				}
-				log.Printf("   Created guest #%02d: %s [RSVP: %s, Attended: %v, QR: %s]", i+1, guest.Name, guest.RSVPStatus, guest.ActualAttendance, guest.QRToken)
-			} else {
-				log.Printf("   Found existing guest: %s", guest.Name)
+				targetInvitationID = persistedInv.ID
 			}
 		}
 	}
 
-	log.Println("==> Database Seeder for Dummy Data Completed Successfully!")
-	return nil
+	// ------------------------------------------------------------------
+	// STEP 5: GUESTS (10 Data for first Invitation)
+	// ------------------------------------------------------------------
+	if targetInvitationID != uuid.Nil {
+		now := time.Now()
+		t1 := now.Add(-1 * time.Hour)
+		t2 := now.Add(-50 * time.Minute)
+
+		guestsData := []models.Guest{
+			{Name: "Hendra Gunawan", Phone: strPtr("081211112222"), Pax: 1, RSVPStatus: "hadir", ActualAttendance: true, AttendanceTime: &t1},
+			{Name: "Eko Prasetyo", Phone: strPtr("081222223333"), Pax: 1, RSVPStatus: "hadir", ActualAttendance: true, AttendanceTime: &t2},
+			{Name: "Bambang Suryono", Phone: strPtr("081233334444"), Pax: 1, RSVPStatus: "hadir", ActualAttendance: false},
+			{Name: "Agus Wijaya", Phone: strPtr("081244445555"), Pax: 1, RSVPStatus: "hadir", ActualAttendance: false},
+			{Name: "Rina Nose", Phone: strPtr("081322223333"), Pax: 1, RSVPStatus: "tidak_hadir", ActualAttendance: false},
+			{Name: "Doni Kusuma", Phone: strPtr("081333334444"), Pax: 1, RSVPStatus: "tidak_hadir", ActualAttendance: false},
+			{Name: "Aditya Pratama", Phone: strPtr("081377778888"), Pax: 1, RSVPStatus: "pending", ActualAttendance: false},
+			{Name: "Bagus Triadi", Phone: strPtr("081388889999"), Pax: 1, RSVPStatus: "pending", ActualAttendance: false},
+			{Name: "Citra Kirana", Phone: strPtr("081399990000"), Pax: 1, RSVPStatus: "pending", ActualAttendance: false},
+			{Name: "Danang Sutrisno", Phone: strPtr("081411112222"), Pax: 1, RSVPStatus: "pending", ActualAttendance: false},
+		}
+
+		for idx, g := range guestsData {
+			g.InvitationID = targetInvitationID
+			g.QRToken = fmt.Sprintf("QR-SEED-%03d-%s", idx+1, targetInvitationID.String()[:8])
+
+			if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&g).Error; err != nil {
+				return nil, fmt.Errorf("failed to seed guest: %w", err)
+			}
+		}
+	}
+
+	result := map[string]int{
+		"packages_seeded":    len(packages),
+		"clients_seeded":     len(clients),
+		"orders_seeded":      len(ordersData),
+		"invitations_seeded": len(invitationsData),
+		"guests_seeded":      10,
+	}
+
+	return result, nil
 }

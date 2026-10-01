@@ -20,6 +20,34 @@ func strPtr(s string) *string {
 // automatically on startup/migration or via the HTTP seeder endpoint.
 func SeedDummyData(tx *gorm.DB) (map[string]int, error) {
 	// ------------------------------------------------------------------
+	// STEP 0: TEMPLATES (2 Default Templates: Elegant White & Dark Rustic)
+	// ------------------------------------------------------------------
+	templatesData := []models.Template{
+		{
+			Name:          "Elegant White",
+			NuxtComponent: "TemplateA",
+			ThumbnailURL:  strPtr("https://images.unsplash.com/photo-1519741497674-611481863552"),
+			IsActive:      true,
+		},
+		{
+			Name:          "Dark Rustic",
+			NuxtComponent: "TemplateB",
+			ThumbnailURL:  strPtr("https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6"),
+			IsActive:      true,
+		},
+	}
+
+	for _, tmpl := range templatesData {
+		var existing models.Template
+		if err := tx.Where("name = ?", tmpl.Name).First(&existing).Error; err == nil {
+			continue
+		}
+		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&tmpl).Error; err != nil {
+			return nil, fmt.Errorf("failed to seed template %s: %w", tmpl.Name, err)
+		}
+	}
+
+	// ------------------------------------------------------------------
 	// STEP 1: PACKAGES (3 Data: Silver, Gold, Platinum with features_config)
 	// ------------------------------------------------------------------
 	packagesData := []models.Package{
@@ -289,6 +317,7 @@ func SeedDummyData(tx *gorm.DB) (map[string]int, error) {
 	}
 
 	result := map[string]int{
+		"templates_seeded":   len(templatesData),
 		"packages_seeded":    len(packages),
 		"clients_seeded":     len(clients),
 		"orders_seeded":      len(ordersData),

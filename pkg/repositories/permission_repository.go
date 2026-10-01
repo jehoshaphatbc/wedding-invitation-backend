@@ -61,4 +61,3 @@ func (r *permissionRepository) Count() (int64, error) {
 	err := r.db.Model(&models.Permission{}).Count(&count).Error
 	return count, err
 }
-

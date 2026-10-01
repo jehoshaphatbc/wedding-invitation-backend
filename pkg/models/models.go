@@ -221,6 +221,7 @@ type Template struct {
 	Name          string         `gorm:"type:varchar(255);not null" json:"name"`
 	NuxtComponent string         `gorm:"type:varchar(255);not null" json:"nuxt_component"`
 	ThumbnailURL  *string        `gorm:"type:varchar(255)" json:"thumbnail_url,omitempty"`
+	IsActive      bool           `gorm:"not null;default:true" json:"is_active"`
 	CreatedAt     time.Time      `json:"created_at"`
 	UpdatedAt     time.Time      `json:"updated_at"`
 	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`

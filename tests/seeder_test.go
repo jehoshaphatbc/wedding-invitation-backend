@@ -69,11 +69,17 @@ func TestHTTPSeeder_Success(t *testing.T) {
 
 		assert.Equal(t, "success", resp.Status)
 		assert.Equal(t, "Seeder berhasil dieksekusi", resp.Message)
+		assert.Equal(t, float64(2), resp.Data["templates_seeded"])
 		assert.Equal(t, float64(3), resp.Data["packages_seeded"])
 		assert.Equal(t, float64(3), resp.Data["clients_seeded"])
 		assert.Equal(t, float64(5), resp.Data["orders_seeded"])
 		assert.Equal(t, float64(3), resp.Data["invitations_seeded"])
 		assert.Equal(t, float64(10), resp.Data["guests_seeded"])
+
+		// 0. Verify Templates in DB
+		var tmplCount int64
+		tx.Model(&models.Template{}).Where("name IN ?", []string{"Elegant White", "Dark Rustic"}).Count(&tmplCount)
+		assert.GreaterOrEqual(t, tmplCount, int64(2))
 
 		// 1. Verify Packages in DB
 		var pkgCount int64

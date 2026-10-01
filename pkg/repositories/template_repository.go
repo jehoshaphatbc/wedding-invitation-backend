@@ -9,7 +9,7 @@ import (
 
 type TemplateRepository interface {
 	Create(template *models.Template) error
-	FindAll(page, perPage int, search, sort, order string) ([]models.Template, int64, error)
+	FindAll(page, perPage int, search string, isActive *bool, isTrashed bool) ([]models.Template, int64, error)
 	FindByID(id uuid.UUID) (*models.Template, error)
 	Update(template *models.Template) error
 	Delete(id uuid.UUID) error
@@ -30,27 +30,34 @@ func (r *templateRepository) Create(template *models.Template) error {
 	return r.db.Create(template).Error
 }
 
-func (r *templateRepository) FindAll(page, perPage int, search, sort, order string) ([]models.Template, int64, error) {
+func (r *templateRepository) FindAll(page, perPage int, search string, isActive *bool, isTrashed bool) ([]models.Template, int64, error) {
 	var templates []models.Template
 	var total int64
 
 	query := r.db.Model(&models.Template{})
+	if isTrashed {
+		query = r.db.Unscoped().Model(&models.Template{}).Where("deleted_at IS NOT NULL")
+	}
 
 	if search != "" {
-		query = query.Where("name ILIKE ? OR nuxt_component ILIKE ?", "%"+search+"%", "%"+search+"%")
+		searchPattern := "%" + search + "%"
+		query = query.Where("name ILIKE ? OR nuxt_component ILIKE ?", searchPattern, searchPattern)
 	}
 
-	query.Count(&total)
-
-	if sort == "" {
-		sort = "created_at"
-	}
-	if order == "" {
-		order = "desc"
+	if isActive != nil {
+		query = query.Where("is_active = ?", *isActive)
 	}
 
-	offset := (page - 1) * perPage
-	err := query.Offset(offset).Limit(perPage).Order(sort + " " + order).Find(&templates).Error
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	if perPage > 0 {
+		offset := (page - 1) * perPage
+		query = query.Offset(offset).Limit(perPage)
+	}
+
+	err := query.Order("created_at desc").Find(&templates).Error
 	return templates, total, err
 }
 
@@ -61,11 +68,7 @@ func (r *templateRepository) FindByID(id uuid.UUID) (*models.Template, error) {
 }
 
 func (r *templateRepository) Update(template *models.Template) error {
-	return r.db.Model(template).Where("id = ?", template.ID).Updates(map[string]interface{}{
-		"name":           template.Name,
-		"nuxt_component": template.NuxtComponent,
-		"thumbnail_url":  template.ThumbnailURL,
-	}).Error
+	return r.db.Save(template).Error
 }
 
 func (r *templateRepository) Delete(id uuid.UUID) error {

@@ -82,13 +82,22 @@ func (h *TemplateHandler) CreateTemplate(c *gin.Context) {
 }
 
 func (h *TemplateHandler) GetAllTemplates(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "20"))
-	search := c.Query("search")
-	sort := c.Query("sort")
-	order := c.Query("order")
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", c.DefaultQuery("per_page", "20"))
+	page, _ := strconv.Atoi(pageStr)
+	perPage, _ := strconv.Atoi(limitStr)
 
-	templates, total, err := h.templateService.GetAllTemplates(page, perPage, search, sort, order)
+	search := c.Query("search")
+	isTrashed := c.Query("is_trashed") == "true"
+
+	var isActive *bool
+	if activeStr := c.Query("is_active"); activeStr != "" {
+		if b, err := strconv.ParseBool(activeStr); err == nil {
+			isActive = &b
+		}
+	}
+
+	templates, total, err := h.templateService.GetAllTemplates(page, perPage, search, isActive, isTrashed)
 	if err != nil {
 		response.InternalServerError(c, "Failed to retrieve templates: "+err.Error())
 		return
@@ -194,14 +203,23 @@ func (h *TemplateHandler) GetTrashedTemplates(c *gin.Context) {
 }
 
 func (h *TemplateHandler) RestoreTemplate(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		response.BadRequest(c, "Invalid template ID.")
-		return
+	var id uuid.UUID
+
+	if idParam := c.Param("id"); idParam != "" {
+		id, _ = uuid.Parse(idParam)
+	} else if idQuery := c.Query("id"); idQuery != "" {
+		id, _ = uuid.Parse(idQuery)
+	} else {
+		var req struct {
+			ID uuid.UUID `json:"id"`
+		}
+		if bindErr := c.ShouldBindJSON(&req); bindErr == nil && req.ID != uuid.Nil {
+			id = req.ID
+		}
 	}
 
-	if !h.isSuperAdmin(c) {
-		response.Forbidden(c, "Only superadmin can restore templates.")
+	if id == uuid.Nil {
+		response.BadRequest(c, "Invalid template ID.")
 		return
 	}
 
@@ -223,11 +241,6 @@ func (h *TemplateHandler) ForceDeleteTemplate(c *gin.Context) {
 		return
 	}
 
-	if !h.isSuperAdmin(c) {
-		response.Forbidden(c, "Only superadmin can permanently delete templates.")
-		return
-	}
-
 	ip := middleware.GetClientIP(c)
 	userAgent := middleware.GetUserAgent(c)
 
@@ -239,90 +252,72 @@ func (h *TemplateHandler) ForceDeleteTemplate(c *gin.Context) {
 	response.Success(c, http.StatusOK, "Template permanently deleted.", nil)
 }
 
-func (h *TemplateHandler) isSuperAdmin(c *gin.Context) bool {
-	isSuperAdmin, exists := c.Get("is_super_admin")
-	return exists && isSuperAdmin.(bool)
-}
-
 type TemplateBulkRequest struct {
-	IDs []string `json:"ids" binding:"required"`
+	IDs []uuid.UUID `json:"ids" binding:"required"`
 }
 
 func (h *TemplateHandler) BulkDeleteTemplates(c *gin.Context) {
 	var req TemplateBulkRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request body.")
+		response.BadRequest(c, "Invalid request body: ids is required")
 		return
 	}
 
 	ip := middleware.GetClientIP(c)
 	userAgent := middleware.GetUserAgent(c)
-	successCount := 0
 
-	for _, idStr := range req.IDs {
-		id, err := uuid.Parse(idStr)
-		if err == nil {
-			if h.templateService.DeleteTemplate(id, ip, userAgent) == nil {
-				successCount++
-			}
+	deletedCount := 0
+	for _, id := range req.IDs {
+		if h.templateService.DeleteTemplate(id, ip, userAgent) == nil {
+			deletedCount++
 		}
 	}
 
-	response.Success(c, http.StatusOK, "Bulk delete completed.", gin.H{"success_count": successCount})
+	response.Success(c, http.StatusOK, fmt.Sprintf("%d templates deleted successfully.", deletedCount), gin.H{
+		"deleted_count": deletedCount,
+	})
 }
 
 func (h *TemplateHandler) BulkRestoreTemplates(c *gin.Context) {
 	var req TemplateBulkRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request body.")
-		return
-	}
-
-	if !h.isSuperAdmin(c) {
-		response.Forbidden(c, "Only superadmin can restore templates.")
+		response.BadRequest(c, "Invalid request body: ids is required")
 		return
 	}
 
 	ip := middleware.GetClientIP(c)
 	userAgent := middleware.GetUserAgent(c)
-	successCount := 0
 
-	for _, idStr := range req.IDs {
-		id, err := uuid.Parse(idStr)
-		if err == nil {
-			if h.templateService.RestoreTemplate(id, ip, userAgent) == nil {
-				successCount++
-			}
+	restoredCount := 0
+	for _, id := range req.IDs {
+		if h.templateService.RestoreTemplate(id, ip, userAgent) == nil {
+			restoredCount++
 		}
 	}
 
-	response.Success(c, http.StatusOK, "Bulk restore completed.", gin.H{"success_count": successCount})
+	response.Success(c, http.StatusOK, fmt.Sprintf("%d templates restored successfully.", restoredCount), gin.H{
+		"restored_count": restoredCount,
+	})
 }
 
 func (h *TemplateHandler) BulkForceDeleteTemplates(c *gin.Context) {
 	var req TemplateBulkRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request body.")
-		return
-	}
-
-	if !h.isSuperAdmin(c) {
-		response.Forbidden(c, "Only superadmin can permanently delete templates.")
+		response.BadRequest(c, "Invalid request body: ids is required")
 		return
 	}
 
 	ip := middleware.GetClientIP(c)
 	userAgent := middleware.GetUserAgent(c)
-	successCount := 0
 
-	for _, idStr := range req.IDs {
-		id, err := uuid.Parse(idStr)
-		if err == nil {
-			if h.templateService.ForceDeleteTemplate(id, ip, userAgent) == nil {
-				successCount++
-			}
+	deletedCount := 0
+	for _, id := range req.IDs {
+		if h.templateService.ForceDeleteTemplate(id, ip, userAgent) == nil {
+			deletedCount++
 		}
 	}
 
-	response.Success(c, http.StatusOK, "Bulk force delete completed.", gin.H{"success_count": successCount})
+	response.Success(c, http.StatusOK, fmt.Sprintf("%d templates permanently deleted.", deletedCount), gin.H{
+		"deleted_count": deletedCount,
+	})
 }

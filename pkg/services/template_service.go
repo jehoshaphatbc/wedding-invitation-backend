@@ -14,6 +14,7 @@ type TemplateRequest struct {
 	Name          string  `json:"name" form:"name" binding:"required"`
 	NuxtComponent string  `json:"nuxt_component" form:"nuxt_component" binding:"required"`
 	ThumbnailURL  *string `json:"thumbnail_url" form:"thumbnail_url"`
+	IsActive      *bool   `json:"is_active" form:"is_active"`
 }
 
 type TemplateService struct {
@@ -43,10 +44,16 @@ func (s *TemplateService) auditLog(userID *uuid.UUID, action, resourceType strin
 }
 
 func (s *TemplateService) CreateTemplate(req TemplateRequest) (*models.Template, error) {
+	isActive := true
+	if req.IsActive != nil {
+		isActive = *req.IsActive
+	}
+
 	template := &models.Template{
 		Name:          req.Name,
 		NuxtComponent: req.NuxtComponent,
 		ThumbnailURL:  req.ThumbnailURL,
+		IsActive:      isActive,
 	}
 
 	if err := s.templateRepo.Create(template); err != nil {
@@ -56,14 +63,14 @@ func (s *TemplateService) CreateTemplate(req TemplateRequest) (*models.Template,
 	return template, nil
 }
 
-func (s *TemplateService) GetAllTemplates(page, perPage int, search, sort, order string) ([]models.Template, int64, error) {
+func (s *TemplateService) GetAllTemplates(page, perPage int, search string, isActive *bool, isTrashed bool) ([]models.Template, int64, error) {
 	if page < 1 {
 		page = 1
 	}
-	if perPage < 1 || perPage > 100 {
+	if perPage < 1 && perPage != -1 {
 		perPage = 20
 	}
-	return s.templateRepo.FindAll(page, perPage, search, sort, order)
+	return s.templateRepo.FindAll(page, perPage, search, isActive, isTrashed)
 }
 
 func (s *TemplateService) GetTemplateByID(id uuid.UUID) (*models.Template, error) {
@@ -91,6 +98,9 @@ func (s *TemplateService) UpdateTemplate(id uuid.UUID, req TemplateRequest) (*mo
 		} else {
 			template.ThumbnailURL = req.ThumbnailURL
 		}
+	}
+	if req.IsActive != nil {
+		template.IsActive = *req.IsActive
 	}
 
 	if err := s.templateRepo.Update(template); err != nil {

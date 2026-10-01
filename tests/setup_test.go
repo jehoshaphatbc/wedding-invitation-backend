@@ -198,17 +198,32 @@ func setupTestRouter(tx *gorm.DB) *gin.Engine {
 	// Client Portal
 	clientPortalService := services.NewClientPortalService(orderRepo, invitationRepo, auditRepo)
 	clientPortalHandler := handlers.NewClientPortalHandler(clientPortalService, orderRepo)
+	clientAuthMiddleware := middleware.ClientFormTokenMiddleware(orderRepo)
 
 	clientPortal := api.Group("/client")
 	{
 		clientPortal.GET("/auth-verify", clientPortalHandler.AuthVerify)
-		clientPortal.PUT("/invitation", middleware.ClientFormTokenMiddleware(orderRepo), clientPortalHandler.UpdateInvitation)
+		clientPortal.POST("/invitation", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
+		clientPortal.PUT("/invitation", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
+	}
+
+	apiInvitationSetup := api.Group("/invitation")
+	{
+		apiInvitationSetup.POST("/setup", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
+		apiInvitationSetup.PUT("/setup", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
 	}
 
 	clientPortalAlias := r.Group("/api/client")
 	{
 		clientPortalAlias.GET("/auth-verify", clientPortalHandler.AuthVerify)
-		clientPortalAlias.PUT("/invitation", middleware.ClientFormTokenMiddleware(orderRepo), clientPortalHandler.UpdateInvitation)
+		clientPortalAlias.POST("/invitation", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
+		clientPortalAlias.PUT("/invitation", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
+	}
+
+	rInvitationSetup := r.Group("/api/invitation")
+	{
+		rInvitationSetup.POST("/setup", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
+		rInvitationSetup.PUT("/setup", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
 	}
 
 	return r

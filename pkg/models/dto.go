@@ -301,6 +301,14 @@ type PaymentWebhookRequest struct {
 type UpdateClientInvitationRequest struct {
 	Title       *string                `json:"title,omitempty"`
 	Slug        *string                `json:"slug,omitempty"`
+	Groom       interface{}            `json:"groom,omitempty"`
+	Bride       interface{}            `json:"bride,omitempty"`
+	Event       interface{}            `json:"event,omitempty"`
+	Theme       interface{}            `json:"theme,omitempty"`
+	Story       interface{}            `json:"story,omitempty"`
+	Gallery     interface{}            `json:"gallery,omitempty"`
+	Gift        interface{}            `json:"gift,omitempty"`
+	Gifts       interface{}            `json:"gifts,omitempty"`
 	GroomData   map[string]interface{} `json:"groom_data,omitempty"`
 	BrideData   map[string]interface{} `json:"bride_data,omitempty"`
 	EventsData  interface{}            `json:"events_data,omitempty"`
@@ -309,19 +317,21 @@ type UpdateClientInvitationRequest struct {
 }
 
 type ClientAuthVerifyResponse struct {
+	Valid      bool                  `json:"valid"`
+	Token      string                `json:"token"`
+	Client     *ClientSummary        `json:"client"`
 	Order      ClientOrderSummary    `json:"order"`
-	Client     *ClientSummary        `json:"client,omitempty"`
-	Package    *ClientPackageSummary `json:"package,omitempty"`
-	Invitation *Invitation           `json:"invitation,omitempty"`
+	Package    *ClientPackageSummary `json:"package"`
+	Invitation *Invitation           `json:"invitation"`
 }
 
 type ClientOrderSummary struct {
 	ID            uuid.UUID   `json:"id"`
 	InvoiceNumber string      `json:"invoice_number"`
 	Status        OrderStatus `json:"status"`
-	TotalAmount   float64     `json:"total_amount"`
-	FormToken     *string     `json:"form_token"`
-	ScannerToken  *string     `json:"scanner_token"`
+	TotalAmount   float64     `json:"total_amount,omitempty"`
+	FormToken     *string     `json:"form_token,omitempty"`
+	ScannerToken  *string     `json:"scanner_token,omitempty"`
 }
 
 type ClientSummary struct {

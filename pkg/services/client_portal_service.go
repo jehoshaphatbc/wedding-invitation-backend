@@ -27,7 +27,7 @@ func NewClientPortalService(
 	}
 }
 
-// VerifyToken verifies the magic link form_token, loads order, client, package features_config, and invitation.
+// VerifyToken verifies the magic link form_token, loads order, client, package features_config, and invitation (or null if not created).
 func (s *ClientPortalService) VerifyToken(token string) (*models.ClientAuthVerifyResponse, error) {
 	if token == "" {
 		return nil, errors.New("form token is required")
@@ -46,25 +46,9 @@ func (s *ClientPortalService) VerifyToken(token string) (*models.ClientAuthVerif
 		return nil, err
 	}
 
-	// Auto-create draft invitation if not exists yet
-	if invitation == nil {
-		title := "Draft Undangan"
-		if order.Client != nil && order.Client.Name != "" {
-			title = "Undangan " + order.Client.Name
-		}
-		invitation = &models.Invitation{
-			OrderID:   order.ID,
-			ClientID:  order.ClientID,
-			PackageID: order.PackageID,
-			Title:     title,
-			Status:    "draft",
-		}
-		if err := s.invitationRepo.Create(invitation); err != nil {
-			return nil, err
-		}
-	}
-
 	res := &models.ClientAuthVerifyResponse{
+		Valid: true,
+		Token: token,
 		Order: models.ClientOrderSummary{
 			ID:            order.ID,
 			InvoiceNumber: order.InvoiceNumber,
@@ -96,56 +80,125 @@ func (s *ClientPortalService) VerifyToken(token string) (*models.ClientAuthVerif
 	return res, nil
 }
 
-// UpdateInvitation updates invitation content fields for a given order.
-func (s *ClientPortalService) UpdateInvitation(orderID uuid.UUID, req models.UpdateClientInvitationRequest, ip, userAgent string) (*models.Invitation, error) {
+// UpdateInvitation performs an upsert of invitation data for a given order.
+func (s *ClientPortalService) UpdateInvitation(orderID, clientID, packageID uuid.UUID, req models.UpdateClientInvitationRequest, ip, userAgent string) (*models.Invitation, error) {
 	invitation, err := s.invitationRepo.FindByOrderID(orderID)
 	if err != nil {
 		return nil, err
 	}
 
+	isNew := false
 	if invitation == nil {
+		isNew = true
+		title := "Draft Undangan"
+		if req.Title != nil && *req.Title != "" {
+			title = *req.Title
+		}
 		invitation = &models.Invitation{
-			OrderID: orderID,
-			Title:   "Draft Undangan",
-			Status:  "draft",
+			OrderID:   orderID,
+			ClientID:  clientID,
+			PackageID: packageID,
+			Title:     title,
+			Status:    "draft",
 		}
-		if req.Title != nil {
-			invitation.Title = *req.Title
+	}
+
+	if req.Title != nil && *req.Title != "" {
+		invitation.Title = *req.Title
+	}
+	if req.Slug != nil && *req.Slug != "" {
+		invitation.Slug = req.Slug
+	}
+
+	// Groom
+	if req.Groom != nil {
+		invitation.Groom = req.Groom
+		if m, ok := req.Groom.(map[string]interface{}); ok {
+			invitation.GroomData = m
 		}
+	} else if req.GroomData != nil {
+		invitation.Groom = req.GroomData
+		invitation.GroomData = req.GroomData
+	}
+
+	// Bride
+	if req.Bride != nil {
+		invitation.Bride = req.Bride
+		if m, ok := req.Bride.(map[string]interface{}); ok {
+			invitation.BrideData = m
+		}
+	} else if req.BrideData != nil {
+		invitation.Bride = req.BrideData
+		invitation.BrideData = req.BrideData
+	}
+
+	// Event
+	if req.Event != nil {
+		invitation.Event = req.Event
+		invitation.EventsData = req.Event
+	} else if req.EventsData != nil {
+		invitation.Event = req.EventsData
+		invitation.EventsData = req.EventsData
+	}
+
+	// Theme
+	if req.Theme != nil {
+		invitation.Theme = req.Theme
+	}
+
+	// Story
+	if req.Story != nil {
+		invitation.Story = req.Story
+		invitation.StoryData = req.Story
+	} else if req.StoryData != nil {
+		invitation.Story = req.StoryData
+		invitation.StoryData = req.StoryData
+	}
+
+	// Gallery
+	if req.Gallery != nil {
+		invitation.Gallery = req.Gallery
+		if urls, ok := req.Gallery.([]string); ok {
+			invitation.GalleryURLs = urls
+		} else if slice, ok := req.Gallery.([]interface{}); ok {
+			var strList []string
+			for _, item := range slice {
+				if s, ok := item.(string); ok {
+					strList = append(strList, s)
+				}
+			}
+			invitation.GalleryURLs = strList
+		}
+	} else if req.GalleryURLs != nil {
+		invitation.Gallery = req.GalleryURLs
+		invitation.GalleryURLs = req.GalleryURLs
+	}
+
+	// Gift & Gifts
+	if req.Gift != nil {
+		invitation.Gift = req.Gift
+	}
+	if req.Gifts != nil {
+		invitation.Gifts = req.Gifts
+	}
+
+	if isNew {
 		if err := s.invitationRepo.Create(invitation); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := s.invitationRepo.Update(invitation); err != nil {
 			return nil, err
 		}
 	}
 
-	if req.Title != nil {
-		invitation.Title = *req.Title
-	}
-	if req.Slug != nil {
-		invitation.Slug = req.Slug
-	}
-	if req.GroomData != nil {
-		invitation.GroomData = req.GroomData
-	}
-	if req.BrideData != nil {
-		invitation.BrideData = req.BrideData
-	}
-	if req.EventsData != nil {
-		invitation.EventsData = req.EventsData
-	}
-	if req.StoryData != nil {
-		invitation.StoryData = req.StoryData
-	}
-	if req.GalleryURLs != nil {
-		invitation.GalleryURLs = req.GalleryURLs
-	}
-
-	if err := s.invitationRepo.Update(invitation); err != nil {
-		return nil, err
-	}
-
 	if s.auditRepo != nil {
+		action := "client_invitation.updated"
+		if isNew {
+			action = "client_invitation.created"
+		}
 		s.auditRepo.Create(&models.AuditLog{
-			Action:       "client_invitation.updated",
+			Action:       action,
 			ResourceType: "invitations",
 			ResourceID:   &invitation.ID,
 			IPAddress:    &ip,

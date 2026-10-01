@@ -173,11 +173,29 @@ func (s *OrderService) HandlePaymentWebhook(req models.PaymentWebhookRequest, ip
 		}
 
 		order.Status = models.OrderStatusPaid
-		if order.FormToken == "" {
-			order.FormToken = "form_" + generateRandomHex(16)
+		if order.FormToken == nil || *order.FormToken == "" {
+			ft := "form_" + generateRandomHex(16)
+			order.FormToken = &ft
 		}
-		if order.ScannerToken == "" {
-			order.ScannerToken = "scan_" + generateRandomHex(16)
+
+		// Check if package has has_qr == true
+		pkg, err := s.packageRepo.FindByID(order.PackageID)
+		hasQR := false
+		if err == nil && pkg != nil && pkg.FeaturesConfig != nil {
+			if val, ok := pkg.FeaturesConfig["has_qr"]; ok {
+				if b, isBool := val.(bool); isBool && b {
+					hasQR = true
+				}
+			}
+		}
+
+		if hasQR {
+			if order.ScannerToken == nil || *order.ScannerToken == "" {
+				st := "scan_" + generateRandomHex(16)
+				order.ScannerToken = &st
+			}
+		} else {
+			order.ScannerToken = nil
 		}
 
 		if err := s.orderRepo.Update(order); err != nil {
@@ -247,11 +265,29 @@ func (s *OrderService) UpdateOrder(id uuid.UUID, req models.UpdateOrderRequest, 
 	if req.Status != nil {
 		order.Status = *req.Status
 		if *req.Status == models.OrderStatusPaid {
-			if order.FormToken == "" {
-				order.FormToken = "form_" + generateRandomHex(16)
+			if order.FormToken == nil || *order.FormToken == "" {
+				ft := "form_" + generateRandomHex(16)
+				order.FormToken = &ft
 			}
-			if order.ScannerToken == "" {
-				order.ScannerToken = "scan_" + generateRandomHex(16)
+
+			// Check if package has has_qr == true
+			pkg, err := s.packageRepo.FindByID(order.PackageID)
+			hasQR := false
+			if err == nil && pkg != nil && pkg.FeaturesConfig != nil {
+				if val, ok := pkg.FeaturesConfig["has_qr"]; ok {
+					if b, isBool := val.(bool); isBool && b {
+						hasQR = true
+					}
+				}
+			}
+
+			if hasQR {
+				if order.ScannerToken == nil || *order.ScannerToken == "" {
+					st := "scan_" + generateRandomHex(16)
+					order.ScannerToken = &st
+				}
+			} else {
+				order.ScannerToken = nil
 			}
 
 			// Ensure invitation is created if paid

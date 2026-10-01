@@ -96,12 +96,18 @@ func TestHTTPSeeder_Success(t *testing.T) {
 		assert.Equal(t, int64(3), paidOrderCount)
 		assert.Equal(t, int64(2), unpaidOrderCount)
 
-		// Verify paid order has form_token and scanner_token
+		// Verify paid order has form_token, and scanner_token conditionally based on has_qr
 		var samplePaidOrder models.Order
 		err = tx.Where("invoice_number = ?", "INV-SEED-001").First(&samplePaidOrder).Error
 		require.NoError(t, err)
-		assert.NotEmpty(t, samplePaidOrder.FormToken)
-		assert.NotEmpty(t, samplePaidOrder.ScannerToken)
+		assert.NotNil(t, samplePaidOrder.FormToken)
+		assert.Nil(t, samplePaidOrder.ScannerToken) // has_qr == false -> scanner_token must be nil/NULL
+
+		var platinumPaidOrder models.Order
+		err = tx.Where("invoice_number = ?", "INV-SEED-003").First(&platinumPaidOrder).Error
+		require.NoError(t, err)
+		assert.NotNil(t, platinumPaidOrder.FormToken)
+		assert.NotNil(t, platinumPaidOrder.ScannerToken) // has_qr == true -> scanner_token generated
 
 		// 4. Verify Invitations in DB
 		var invCount int64

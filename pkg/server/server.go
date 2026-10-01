@@ -246,6 +246,19 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	r.POST("/api/checkout", orderHandler.Checkout)
 	r.POST("/api/webhook/payment", orderHandler.PaymentWebhook)
 
+	// Direct /api/admin alias for clients & orders if called without /v1
+	apiAdmin := r.Group("/api/admin")
+	apiAdmin.Use(middleware.AuthMiddleware(jwtManager))
+	apiAdmin.Use(middleware.OwnershipOrAdminMiddleware(userRepo))
+	apiAdmin.Use(middleware.AdminOnly())
+	apiAdmin.Use(middleware.RateLimitMiddleware(generalRateLimiter))
+	{
+		apiAdmin.GET("/clients", clientHandler.GetAllClients)
+		apiAdmin.GET("/clients/:id", clientHandler.GetClient)
+		apiAdmin.GET("/orders", orderHandler.GetAllOrders)
+		apiAdmin.GET("/orders/:id", orderHandler.GetOrder)
+	}
+
 	// HTTP Seeder Endpoint (protected by SEEDER_SECRET)
 	api.GET("/seeder", seederHandler.Execute)
 	api.POST("/seeder", seederHandler.Execute)

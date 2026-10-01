@@ -98,7 +98,7 @@ func TestPublicPaymentWebhook(t *testing.T) {
 	pkg := &models.Package{
 		Name:           "Paket Diamond Webhook",
 		Price:          1000000,
-		FeaturesConfig: models.FeaturesConfig{"has_maps": true},
+		FeaturesConfig: models.FeaturesConfig{"has_maps": true, "has_qr": true},
 	}
 	require.NoError(t, tx.Create(pkg).Error)
 
@@ -354,3 +354,109 @@ func TestAdminOrdersCRUD(t *testing.T) {
 		assert.Equal(t, http.StatusOK, wBulkRes.Code)
 	})
 }
+
+func TestAdminClientsEagerLoadingOrdersAndPackages(t *testing.T) {
+	tx, cleanup := setupTx(t)
+	defer cleanup()
+
+	router := setupTestRouter(tx)
+
+	// 1. Create package Platinum with has_qr == true
+	pkg := &models.Package{
+		Name:  "Platinum",
+		Price: 750000,
+		FeaturesConfig: models.FeaturesConfig{
+			"has_qr":        true,
+			"has_gallery":   true,
+			"gallery_limit": 30,
+		},
+	}
+	require.NoError(t, tx.Create(pkg).Error)
+
+	// 2. Create client "Yosa"
+	client := &models.Client{
+		Name:     "Yosa",
+		Email:    "yosa@example.com",
+		Whatsapp: "081234567890",
+	}
+	require.NoError(t, tx.Create(client).Error)
+
+	// 3. Create paid order for Yosa
+	formToken := "abc"
+	scannerToken := "def"
+	order := &models.Order{
+		InvoiceNumber: "INV-YOSA-001",
+		ClientID:      client.ID,
+		PackageID:     pkg.ID,
+		TotalAmount:   750000,
+		Status:        models.OrderStatusPaid,
+		PaymentURL:    "https://app.midtrans.com/mock-yosa",
+		FormToken:     &formToken,
+		ScannerToken:  &scannerToken,
+	}
+	require.NoError(t, tx.Create(order).Error)
+
+	// 4. Test GET /api/v1/admin/clients/:id
+	t.Run("GET /api/v1/admin/clients/:id returns orders array with package and features_config", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, "/api/v1/admin/clients/"+client.ID.String(), nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var resp struct {
+			Success bool          `json:"success"`
+			Data    models.Client `json:"data"`
+		}
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		require.NoError(t, err)
+
+		assert.Equal(t, client.ID, resp.Data.ID)
+		assert.Equal(t, "Yosa", resp.Data.Name)
+		require.Len(t, resp.Data.Orders, 1)
+
+		o := resp.Data.Orders[0]
+		assert.Equal(t, order.ID, o.ID)
+		assert.Equal(t, models.OrderStatusPaid, o.Status)
+		require.NotNil(t, o.FormToken)
+		assert.Equal(t, "abc", *o.FormToken)
+		require.NotNil(t, o.ScannerToken)
+		assert.Equal(t, "def", *o.ScannerToken)
+
+		require.NotNil(t, o.Package)
+		assert.Equal(t, "Platinum", o.Package.Name)
+		require.NotNil(t, o.Package.FeaturesConfig)
+		assert.Equal(t, true, o.Package.FeaturesConfig["has_qr"])
+	})
+
+	// 5. Test GET /api/v1/admin/clients list
+	t.Run("GET /api/v1/admin/clients list returns orders with preloaded package", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, "/api/v1/admin/clients?search=Yosa", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var resp struct {
+			Success bool            `json:"success"`
+			Data    []models.Client `json:"data"`
+		}
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		require.NoError(t, err)
+
+		require.NotEmpty(t, resp.Data)
+		found := false
+		for _, c := range resp.Data {
+			if c.ID == client.ID {
+				found = true
+				require.Len(t, c.Orders, 1)
+				assert.Equal(t, "Platinum", c.Orders[0].Package.Name)
+				assert.Equal(t, true, c.Orders[0].Package.FeaturesConfig["has_qr"])
+				assert.Equal(t, "abc", *c.Orders[0].FormToken)
+				assert.Equal(t, "def", *c.Orders[0].ScannerToken)
+			}
+		}
+		assert.True(t, found, "Client Yosa should be present in response")
+	})
+}
+

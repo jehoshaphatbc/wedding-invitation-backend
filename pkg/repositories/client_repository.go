@@ -56,15 +56,28 @@ func (r *clientRepository) FindAll(page, perPage int, search string, isTrashed b
 		query = query.Offset(offset).Limit(perPage)
 	}
 
-	err := query.Order("created_at desc").Find(&clients).Error
-	return clients, total, err
+	err := query.Preload("Orders.Package").Order("created_at desc").Find(&clients).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	for i := range clients {
+		if clients[i].Orders == nil {
+			clients[i].Orders = []models.Order{}
+		}
+	}
+
+	return clients, total, nil
 }
 
 func (r *clientRepository) FindByID(id uuid.UUID) (*models.Client, error) {
 	var client models.Client
-	err := r.db.Preload("Orders").Where("id = ?", id).First(&client).Error
+	err := r.db.Preload("Orders.Package").Where("id = ?", id).First(&client).Error
 	if err != nil {
 		return nil, err
+	}
+	if client.Orders == nil {
+		client.Orders = []models.Order{}
 	}
 	return &client, nil
 }
@@ -118,6 +131,16 @@ func (r *clientRepository) FindTrashedAll(page, perPage int, search, sort, order
 	}
 
 	offset := (page - 1) * perPage
-	err := query.Offset(offset).Limit(perPage).Order(sort + " " + order).Find(&clients).Error
-	return clients, total, err
+	err := query.Preload("Orders.Package").Offset(offset).Limit(perPage).Order(sort + " " + order).Find(&clients).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	for i := range clients {
+		if clients[i].Orders == nil {
+			clients[i].Orders = []models.Order{}
+		}
+	}
+
+	return clients, total, nil
 }

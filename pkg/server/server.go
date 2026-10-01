@@ -75,7 +75,11 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	r.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Seeder-Secret, X-Form-Token, X-Client-Token")
+		if reqHeaders := c.GetHeader("Access-Control-Request-Headers"); reqHeaders != "" {
+			c.Header("Access-Control-Allow-Headers", reqHeaders)
+		} else {
+			c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Seeder-Secret, X-Form-Token, X-Client-Token, X-Requested-With, X-CSRF-Token")
+		}
 		c.Header("Access-Control-Max-Age", "86400")
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)

@@ -35,6 +35,8 @@ type Config struct {
 
 	BlobReadWriteToken string
 	MaxUploadSize      int64
+
+	SeederSecret string
 }
 
 func Load() (*Config, error) {
@@ -73,6 +75,8 @@ func Load() (*Config, error) {
 
 		BlobReadWriteToken: getEnv("BLOB_READ_WRITE_TOKEN", ""),
 		MaxUploadSize:      maxUploadSize,
+
+		SeederSecret: getEnv("SEEDER_SECRET", "harsava-seeder-secret-2026"),
 	}
 
 	return cfg, nil

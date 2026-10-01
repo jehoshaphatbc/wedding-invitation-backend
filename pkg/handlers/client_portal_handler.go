@@ -28,8 +28,8 @@ func NewClientPortalHandler(
 	}
 }
 
-// AuthVerify validates the magic link form_token from query ?token= or Authorization header.
-// GET /api/client/auth-verify
+// AuthVerify validates the magic link form_token from query ?token= or Authorization/Client-Token header.
+// GET /api/v1/client/auth-verify
 func (h *ClientPortalHandler) AuthVerify(c *gin.Context) {
 	token := c.Query("token")
 
@@ -41,6 +41,10 @@ func (h *ClientPortalHandler) AuthVerify(c *gin.Context) {
 				token = strings.TrimSpace(parts[1])
 			}
 		}
+	}
+
+	if token == "" {
+		token = c.GetHeader("X-Client-Token")
 	}
 
 	if token == "" {
@@ -61,8 +65,8 @@ func (h *ClientPortalHandler) AuthVerify(c *gin.Context) {
 	response.Success(c, http.StatusOK, "Client authentication verified successfully.", data)
 }
 
-// UpdateInvitation saves form inputs submitted by the client (groom, bride, events, story, gallery, etc.)
-// PUT /api/client/invitation
+// UpdateInvitation saves form inputs submitted by the client (groom, bride, event, theme, story, gallery, gift/gifts)
+// POST /api/v1/client/invitation & PUT /api/v1/client/invitation
 func (h *ClientPortalHandler) UpdateInvitation(c *gin.Context) {
 	var order *models.Order
 
@@ -84,10 +88,13 @@ func (h *ClientPortalHandler) UpdateInvitation(c *gin.Context) {
 			}
 		}
 		if token == "" {
-			token = c.Query("token")
+			token = c.GetHeader("X-Client-Token")
 		}
 		if token == "" {
 			token = c.GetHeader("X-Form-Token")
+		}
+		if token == "" {
+			token = c.Query("token")
 		}
 
 		if token == "" {
@@ -112,11 +119,11 @@ func (h *ClientPortalHandler) UpdateInvitation(c *gin.Context) {
 	ip := middleware.GetClientIP(c)
 	userAgent := middleware.GetUserAgent(c)
 
-	invitation, err := h.portalService.UpdateInvitation(order.ID, req, ip, userAgent)
+	invitation, err := h.portalService.UpdateInvitation(order.ID, order.ClientID, order.PackageID, req, ip, userAgent)
 	if err != nil {
 		response.InternalServerError(c, "Failed to update invitation: "+err.Error())
 		return
 	}
 
-	response.Success(c, http.StatusOK, "Invitation updated successfully.", invitation)
+	response.Success(c, http.StatusOK, "Data undangan berhasil disimpan", invitation)
 }

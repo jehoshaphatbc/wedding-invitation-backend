@@ -196,8 +196,11 @@ func setupTestRouter(tx *gorm.DB) *gin.Engine {
 	r.POST("/api/seeder", seederHandler.Execute)
 
 	// Client Portal
+	guestRepo := repositories.NewGuestRepository(tx)
 	clientPortalService := services.NewClientPortalService(orderRepo, invitationRepo, auditRepo)
 	clientPortalHandler := handlers.NewClientPortalHandler(clientPortalService, orderRepo)
+	clientGuestService := services.NewClientGuestService(guestRepo, invitationRepo, auditRepo)
+	clientGuestHandler := handlers.NewClientGuestHandler(clientGuestService, orderRepo)
 	clientAuthMiddleware := middleware.ClientFormTokenMiddleware(orderRepo)
 
 	clientPortal := api.Group("/client")
@@ -205,6 +208,15 @@ func setupTestRouter(tx *gorm.DB) *gin.Engine {
 		clientPortal.GET("/auth-verify", clientPortalHandler.AuthVerify)
 		clientPortal.POST("/invitation", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
 		clientPortal.PUT("/invitation", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
+
+		clientGuests := clientPortal.Group("/guests")
+		clientGuests.Use(clientAuthMiddleware)
+		{
+			clientGuests.GET("", clientGuestHandler.GetGuests)
+			clientGuests.POST("/bulk", clientGuestHandler.BulkCreateGuests)
+			clientGuests.PUT("/:id", clientGuestHandler.UpdateGuest)
+			clientGuests.DELETE("/:id", clientGuestHandler.DeleteGuest)
+		}
 	}
 
 	apiInvitationSetup := api.Group("/invitation")
@@ -218,6 +230,15 @@ func setupTestRouter(tx *gorm.DB) *gin.Engine {
 		clientPortalAlias.GET("/auth-verify", clientPortalHandler.AuthVerify)
 		clientPortalAlias.POST("/invitation", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
 		clientPortalAlias.PUT("/invitation", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
+
+		clientGuestsAlias := clientPortalAlias.Group("/guests")
+		clientGuestsAlias.Use(clientAuthMiddleware)
+		{
+			clientGuestsAlias.GET("", clientGuestHandler.GetGuests)
+			clientGuestsAlias.POST("/bulk", clientGuestHandler.BulkCreateGuests)
+			clientGuestsAlias.PUT("/:id", clientGuestHandler.UpdateGuest)
+			clientGuestsAlias.DELETE("/:id", clientGuestHandler.DeleteGuest)
+		}
 	}
 
 	rInvitationSetup := r.Group("/api/invitation")

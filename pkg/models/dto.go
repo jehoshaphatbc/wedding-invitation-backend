@@ -346,3 +346,32 @@ type ClientPackageSummary struct {
 	Name           string         `json:"name"`
 	FeaturesConfig FeaturesConfig `json:"features_config"`
 }
+
+// Client Guest DTOs
+type BulkCreateGuestsRequest struct {
+	Names []string `json:"names" binding:"required,min=1"`
+}
+
+type UpdateGuestRequest struct {
+	Name       *string `json:"name,omitempty"`
+	GuestName  *string `json:"guest_name,omitempty"`
+	Phone      *string `json:"phone,omitempty"`
+	Pax        *int    `json:"pax,omitempty"`
+	RSVPStatus *string `json:"rsvp_status,omitempty"`
+}
+
+type GuestSummaryResponse struct {
+	TotalGuests     int64 `json:"total_guests"`
+	TotalHadir      int64 `json:"total_hadir"`
+	TotalTidakHadir int64 `json:"total_tidak_hadir"`
+	TotalPending    int64 `json:"total_pending"`
+}
+
+type ClientGuestListResponse struct {
+	Guests          []Guest              `json:"guests"`
+	TotalGuests     int64                `json:"total_guests"`
+	TotalHadir      int64                `json:"total_hadir"`
+	TotalTidakHadir int64                `json:"total_tidak_hadir"`
+	TotalPending    int64                `json:"total_pending"`
+	Summary         GuestSummaryResponse `json:"summary"`
+}

@@ -37,6 +37,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	clientRepo := repositories.NewClientRepository(db)
 	orderRepo := repositories.NewOrderRepository(db)
 	invitationRepo := repositories.NewInvitationRepository(db)
+	guestRepo := repositories.NewGuestRepository(db)
 
 	permissionRepo := repositories.NewPermissionRepository(db)
 	profileRepo := repositories.NewProfileRepository(db)
@@ -52,6 +53,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	clientService := services.NewClientService(clientRepo, auditRepo)
 	orderService := services.NewOrderService(orderRepo, clientRepo, packageRepo, invitationRepo, auditRepo)
 	clientPortalService := services.NewClientPortalService(orderRepo, invitationRepo, auditRepo)
+	clientGuestService := services.NewClientGuestService(guestRepo, invitationRepo, auditRepo)
 
 	companySettingService := services.NewCompanySettingService(companySettingRepo, auditRepo)
 	blobService := blob.NewBlobService(cfg)
@@ -65,6 +67,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	clientHandler := handlers.NewClientHandler(clientService)
 	orderHandler := handlers.NewOrderHandler(orderService)
 	clientPortalHandler := handlers.NewClientPortalHandler(clientPortalService, orderRepo)
+	clientGuestHandler := handlers.NewClientGuestHandler(clientGuestService, orderRepo)
 
 	companySettingHandler := handlers.NewCompanySettingHandler(companySettingService, blobService)
 	uploadHandler := handlers.NewUploadHandler(blobService, cfg)
@@ -295,6 +298,16 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		clientPortal.POST("/invitation", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
 		clientPortal.PUT("/invitation", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
 		clientPortal.GET("/invitation", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
+
+		// Guests Management
+		clientGuests := clientPortal.Group("/guests")
+		clientGuests.Use(clientAuthMiddleware)
+		{
+			clientGuests.GET("", clientGuestHandler.GetGuests)
+			clientGuests.POST("/bulk", clientGuestHandler.BulkCreateGuests)
+			clientGuests.PUT("/:id", clientGuestHandler.UpdateGuest)
+			clientGuests.DELETE("/:id", clientGuestHandler.DeleteGuest)
+		}
 	}
 
 	// Alias: /api/v1/invitation/setup
@@ -313,6 +326,16 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		clientPortalAlias.POST("/invitation", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
 		clientPortalAlias.PUT("/invitation", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
 		clientPortalAlias.GET("/invitation", clientAuthMiddleware, clientPortalHandler.UpdateInvitation)
+
+		// Guests Management
+		clientGuestsAlias := clientPortalAlias.Group("/guests")
+		clientGuestsAlias.Use(clientAuthMiddleware)
+		{
+			clientGuestsAlias.GET("", clientGuestHandler.GetGuests)
+			clientGuestsAlias.POST("/bulk", clientGuestHandler.BulkCreateGuests)
+			clientGuestsAlias.PUT("/:id", clientGuestHandler.UpdateGuest)
+			clientGuestsAlias.DELETE("/:id", clientGuestHandler.DeleteGuest)
+		}
 	}
 
 	// Alias: /api/invitation/setup (without /v1)

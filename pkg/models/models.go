@@ -292,8 +292,9 @@ type Order struct {
 	UpdatedAt     time.Time      `json:"updated_at"`
 	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
 
-	Client  *Client  `gorm:"foreignKey:ClientID" json:"client,omitempty"`
-	Package *Package `gorm:"foreignKey:PackageID" json:"package,omitempty"`
+	Client     *Client     `gorm:"foreignKey:ClientID" json:"client,omitempty"`
+	Package    *Package    `gorm:"foreignKey:PackageID" json:"package,omitempty"`
+	Invitation *Invitation `gorm:"foreignKey:OrderID" json:"invitation,omitempty"`
 }
 
 func (o *Order) BeforeCreate(tx *gorm.DB) error {

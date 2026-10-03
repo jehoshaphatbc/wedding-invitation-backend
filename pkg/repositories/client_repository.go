@@ -56,7 +56,7 @@ func (r *clientRepository) FindAll(page, perPage int, search string, isTrashed b
 		query = query.Offset(offset).Limit(perPage)
 	}
 
-	err := query.Preload("Orders.Package").Order("created_at desc").Find(&clients).Error
+	err := query.Preload("Orders.Package").Preload("Orders.Invitation").Order("created_at desc").Find(&clients).Error
 	if err != nil {
 		return nil, 0, err
 	}
@@ -72,7 +72,7 @@ func (r *clientRepository) FindAll(page, perPage int, search string, isTrashed b
 
 func (r *clientRepository) FindByID(id uuid.UUID) (*models.Client, error) {
 	var client models.Client
-	err := r.db.Preload("Orders.Package").Where("id = ?", id).First(&client).Error
+	err := r.db.Preload("Orders.Package").Preload("Orders.Invitation").Where("id = ?", id).First(&client).Error
 	if err != nil {
 		return nil, err
 	}

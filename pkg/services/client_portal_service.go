@@ -2,6 +2,8 @@ package services
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -27,7 +29,21 @@ func NewClientPortalService(
 	}
 }
 
-// VerifyToken verifies the magic link form_token, loads order, client, package features_config, and invitation (or null if not created).
+// extractTemplateID extracts template_id from theme map/object
+func extractTemplateID(theme interface{}) string {
+	if theme == nil {
+		return ""
+	}
+	if m, ok := theme.(map[string]interface{}); ok {
+		if tid, exists := m["template_id"]; exists && tid != nil {
+			return strings.TrimSpace(fmt.Sprintf("%v", tid))
+		}
+	}
+	return ""
+}
+
+// VerifyToken verifies the magic link form_token, loads order, client, package features_config,
+// and determines if setup is completed. Returns invitation=null if client hasn't completed setup.
 func (s *ClientPortalService) VerifyToken(token string) (*models.ClientAuthVerifyResponse, error) {
 	if token == "" {
 		return nil, errors.New("form token is required")
@@ -46,9 +62,26 @@ func (s *ClientPortalService) VerifyToken(token string) (*models.ClientAuthVerif
 		return nil, err
 	}
 
+	isSetupCompleted := false
+	if invitation != nil {
+		hasGroom := invitation.Groom != nil || invitation.GroomData != nil
+		hasBride := invitation.Bride != nil || invitation.BrideData != nil
+		hasEvent := invitation.Event != nil || invitation.EventsData != nil
+
+		if invitation.Status == "published" || (hasGroom && hasBride) || hasEvent {
+			isSetupCompleted = true
+		}
+	}
+
+	var returnedInvitation *models.Invitation
+	if isSetupCompleted {
+		returnedInvitation = invitation
+	}
+
 	res := &models.ClientAuthVerifyResponse{
-		Valid: true,
-		Token: token,
+		Valid:            true,
+		Token:            token,
+		IsSetupCompleted: isSetupCompleted,
 		Order: models.ClientOrderSummary{
 			ID:            order.ID,
 			InvoiceNumber: order.InvoiceNumber,
@@ -57,7 +90,7 @@ func (s *ClientPortalService) VerifyToken(token string) (*models.ClientAuthVerif
 			FormToken:     order.FormToken,
 			ScannerToken:  order.ScannerToken,
 		},
-		Invitation: invitation,
+		Invitation: returnedInvitation,
 	}
 
 	if order.Client != nil {
@@ -80,11 +113,31 @@ func (s *ClientPortalService) VerifyToken(token string) (*models.ClientAuthVerif
 	return res, nil
 }
 
-// UpdateInvitation performs an upsert of invitation data for a given order.
+// UpdateInvitation performs an upsert of invitation data for a given order,
+// enforces theme locking, and sets status to published upon form completion.
 func (s *ClientPortalService) UpdateInvitation(orderID, clientID, packageID uuid.UUID, req models.UpdateClientInvitationRequest, ip, userAgent string) (*models.Invitation, error) {
 	invitation, err := s.invitationRepo.FindByOrderID(orderID)
 	if err != nil {
 		return nil, err
+	}
+
+	// 1. Theme Immutability Enforcement
+	existingTemplateID := ""
+	if invitation != nil && invitation.Theme != nil {
+		existingTemplateID = extractTemplateID(invitation.Theme)
+	}
+
+	if existingTemplateID != "" && req.Theme != nil {
+		newTemplateID := extractTemplateID(req.Theme)
+		if newTemplateID != "" && newTemplateID != existingTemplateID {
+			return nil, errors.New("Template theme is permanently locked and cannot be changed after initial setup.")
+		}
+		// If payload didn't specify template_id, preserve existing template_id
+		if m, ok := req.Theme.(map[string]interface{}); ok {
+			if _, hasTID := m["template_id"]; !hasTID || m["template_id"] == nil {
+				m["template_id"] = existingTemplateID
+			}
+		}
 	}
 
 	isNew := false
@@ -180,6 +233,15 @@ func (s *ClientPortalService) UpdateInvitation(orderID, clientID, packageID uuid
 	}
 	if req.Gifts != nil {
 		invitation.Gifts = req.Gifts
+	}
+
+	// 2. Lifecycle Status: transition to "published" once client submits groom/bride/event
+	hasGroom := invitation.Groom != nil || invitation.GroomData != nil
+	hasBride := invitation.Bride != nil || invitation.BrideData != nil
+	hasEvent := invitation.Event != nil || invitation.EventsData != nil
+
+	if hasGroom || hasBride || hasEvent {
+		invitation.Status = "published"
 	}
 
 	if isNew {

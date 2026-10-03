@@ -9,7 +9,7 @@ import (
 
 type TemplateRepository interface {
 	Create(template *models.Template) error
-	FindAll(page, perPage int, search string, isActive *bool, isTrashed bool) ([]models.Template, int64, error)
+	FindAll(page, perPage int, search, category string, isActive *bool, isTrashed bool) ([]models.Template, int64, error)
 	FindByID(id uuid.UUID) (*models.Template, error)
 	Update(template *models.Template) error
 	Delete(id uuid.UUID) error
@@ -30,7 +30,7 @@ func (r *templateRepository) Create(template *models.Template) error {
 	return r.db.Create(template).Error
 }
 
-func (r *templateRepository) FindAll(page, perPage int, search string, isActive *bool, isTrashed bool) ([]models.Template, int64, error) {
+func (r *templateRepository) FindAll(page, perPage int, search, category string, isActive *bool, isTrashed bool) ([]models.Template, int64, error) {
 	var templates []models.Template
 	var total int64
 
@@ -41,7 +41,11 @@ func (r *templateRepository) FindAll(page, perPage int, search string, isActive 
 
 	if search != "" {
 		searchPattern := "%" + search + "%"
-		query = query.Where("name ILIKE ? OR nuxt_component ILIKE ?", searchPattern, searchPattern)
+		query = query.Where("name ILIKE ? OR nuxt_component ILIKE ? OR category ILIKE ?", searchPattern, searchPattern, searchPattern)
+	}
+
+	if category != "" {
+		query = query.Where("LOWER(category) = LOWER(?)", category)
 	}
 
 	if isActive != nil {
@@ -82,7 +86,8 @@ func (r *templateRepository) FindTrashedAll(page, perPage int, search, sort, ord
 	query := r.db.Unscoped().Where("deleted_at IS NOT NULL")
 
 	if search != "" {
-		query = query.Where("name ILIKE ? OR nuxt_component ILIKE ?", "%"+search+"%", "%"+search+"%")
+		searchPattern := "%" + search + "%"
+		query = query.Where("name ILIKE ? OR nuxt_component ILIKE ? OR category ILIKE ?", searchPattern, searchPattern, searchPattern)
 	}
 
 	query.Model(&models.Template{}).Count(&total)

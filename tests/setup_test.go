@@ -89,6 +89,8 @@ func setupTestRouter(tx *gorm.DB) *gin.Engine {
 	api := r.Group("/api/v1")
 	{
 		api.GET("/features", featureHandler.GetAllFeatures)
+		api.GET("/templates", templateHandler.GetAllTemplates)
+		api.GET("/templates/:id", templateHandler.GetTemplate)
 
 		// Public Checkout & Webhooks
 		api.POST("/checkout", orderHandler.Checkout)

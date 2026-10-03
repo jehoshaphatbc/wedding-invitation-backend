@@ -38,6 +38,7 @@ func TestTemplatesCRUD(t *testing.T) {
 		active := true
 		validPayload := services.TemplateRequest{
 			Name:          "Minimalist Elegance",
+			Category:      "minimalist",
 			NuxtComponent: "TemplateA",
 			ThumbnailURL:  &thumb,
 			IsActive:      &active,
@@ -57,6 +58,7 @@ func TestTemplatesCRUD(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, resp.Success)
 		assert.Equal(t, "Minimalist Elegance", resp.Data.Name)
+		assert.Equal(t, "minimalist", resp.Data.Category)
 		assert.Equal(t, "TemplateA", resp.Data.NuxtComponent)
 		assert.True(t, resp.Data.IsActive)
 		assert.NotNil(t, resp.Data.ThumbnailURL)
@@ -77,11 +79,13 @@ func TestTemplatesCRUD(t *testing.T) {
 		_ = json.Unmarshal(wGet.Body.Bytes(), &getResp)
 		assert.Equal(t, createdID, getResp.Data.ID)
 		assert.Equal(t, "Minimalist Elegance", getResp.Data.Name)
+		assert.Equal(t, "minimalist", getResp.Data.Category)
 
 		// Update (PUT)
 		newActive := false
 		updatePayload := services.TemplateRequest{
 			Name:          "Minimalist Elegance Updated",
+			Category:      "modern",
 			NuxtComponent: "TemplateA2",
 			IsActive:      &newActive,
 		}
@@ -97,10 +101,11 @@ func TestTemplatesCRUD(t *testing.T) {
 		}
 		_ = json.Unmarshal(wUpdate.Body.Bytes(), &updateResp)
 		assert.Equal(t, "Minimalist Elegance Updated", updateResp.Data.Name)
+		assert.Equal(t, "modern", updateResp.Data.Category)
 		assert.False(t, updateResp.Data.IsActive)
 
-		// List filter by is_active=false
-		reqFilter, _ := http.NewRequest(http.MethodGet, "/api/admin/templates?is_active=false&search=Updated", nil)
+		// List filter by is_active=false and category=modern
+		reqFilter, _ := http.NewRequest(http.MethodGet, "/api/admin/templates?is_active=false&category=modern&search=Updated", nil)
 		wFilter := httptest.NewRecorder()
 		router.ServeHTTP(wFilter, reqFilter)
 		assert.Equal(t, http.StatusOK, wFilter.Code)
@@ -112,6 +117,13 @@ func TestTemplatesCRUD(t *testing.T) {
 		_ = json.Unmarshal(wFilter.Body.Bytes(), &listResp)
 		assert.NotEmpty(t, listResp.Data)
 		assert.Equal(t, "Minimalist Elegance Updated", listResp.Data[0].Name)
+		assert.Equal(t, "modern", listResp.Data[0].Category)
+
+		// Public endpoint test: GET /api/v1/templates?category=modern
+		reqPublic, _ := http.NewRequest(http.MethodGet, "/api/v1/templates?category=modern", nil)
+		wPublic := httptest.NewRecorder()
+		router.ServeHTTP(wPublic, reqPublic)
+		assert.Equal(t, http.StatusOK, wPublic.Code)
 
 		// Soft Delete
 		reqDel, _ := http.NewRequest(http.MethodDelete, "/api/admin/templates/"+createdID.String(), nil)

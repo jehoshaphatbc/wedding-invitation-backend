@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -12,6 +13,7 @@ import (
 
 type TemplateRequest struct {
 	Name          string  `json:"name" form:"name" binding:"required"`
+	Category      string  `json:"category" form:"category"`
 	NuxtComponent string  `json:"nuxt_component" form:"nuxt_component" binding:"required"`
 	ThumbnailURL  *string `json:"thumbnail_url" form:"thumbnail_url"`
 	IsActive      *bool   `json:"is_active" form:"is_active"`
@@ -49,8 +51,14 @@ func (s *TemplateService) CreateTemplate(req TemplateRequest) (*models.Template,
 		isActive = *req.IsActive
 	}
 
+	category := strings.TrimSpace(req.Category)
+	if category == "" {
+		category = "classic"
+	}
+
 	template := &models.Template{
 		Name:          req.Name,
+		Category:      category,
 		NuxtComponent: req.NuxtComponent,
 		ThumbnailURL:  req.ThumbnailURL,
 		IsActive:      isActive,
@@ -63,14 +71,14 @@ func (s *TemplateService) CreateTemplate(req TemplateRequest) (*models.Template,
 	return template, nil
 }
 
-func (s *TemplateService) GetAllTemplates(page, perPage int, search string, isActive *bool, isTrashed bool) ([]models.Template, int64, error) {
+func (s *TemplateService) GetAllTemplates(page, perPage int, search, category string, isActive *bool, isTrashed bool) ([]models.Template, int64, error) {
 	if page < 1 {
 		page = 1
 	}
 	if perPage < 1 && perPage != -1 {
 		perPage = 20
 	}
-	return s.templateRepo.FindAll(page, perPage, search, isActive, isTrashed)
+	return s.templateRepo.FindAll(page, perPage, search, category, isActive, isTrashed)
 }
 
 func (s *TemplateService) GetTemplateByID(id uuid.UUID) (*models.Template, error) {
@@ -91,6 +99,9 @@ func (s *TemplateService) UpdateTemplate(id uuid.UUID, req TemplateRequest) (*mo
 	}
 
 	template.Name = req.Name
+	if req.Category != "" {
+		template.Category = strings.TrimSpace(req.Category)
+	}
 	template.NuxtComponent = req.NuxtComponent
 	if req.ThumbnailURL != nil {
 		if *req.ThumbnailURL == "" {

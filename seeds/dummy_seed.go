@@ -25,12 +25,14 @@ func SeedDummyData(tx *gorm.DB) (map[string]int, error) {
 	templatesData := []models.Template{
 		{
 			Name:          "Elegant White",
+			Category:      "classic",
 			NuxtComponent: "TemplateA",
 			ThumbnailURL:  strPtr("https://images.unsplash.com/photo-1519741497674-611481863552"),
 			IsActive:      true,
 		},
 		{
 			Name:          "Dark Rustic",
+			Category:      "rustic",
 			NuxtComponent: "TemplateB",
 			ThumbnailURL:  strPtr("https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6"),
 			IsActive:      true,
@@ -40,6 +42,10 @@ func SeedDummyData(tx *gorm.DB) (map[string]int, error) {
 	for _, tmpl := range templatesData {
 		var existing models.Template
 		if err := tx.Where("name = ?", tmpl.Name).First(&existing).Error; err == nil {
+			if existing.Category == "" {
+				existing.Category = tmpl.Category
+				_ = tx.Save(&existing)
+			}
 			continue
 		}
 		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&tmpl).Error; err != nil {

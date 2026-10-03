@@ -219,6 +219,7 @@ func (p *Package) BeforeCreate(tx *gorm.DB) error {
 type Template struct {
 	ID            uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
 	Name          string         `gorm:"type:varchar(255);not null" json:"name"`
+	Category      string         `gorm:"type:varchar(50);default:'classic'" json:"category"`
 	NuxtComponent string         `gorm:"type:varchar(255);not null" json:"nuxt_component"`
 	ThumbnailURL  *string        `gorm:"type:varchar(255)" json:"thumbnail_url,omitempty"`
 	IsActive      bool           `gorm:"not null;default:true" json:"is_active"`

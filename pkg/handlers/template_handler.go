@@ -88,6 +88,7 @@ func (h *TemplateHandler) GetAllTemplates(c *gin.Context) {
 	perPage, _ := strconv.Atoi(limitStr)
 
 	search := c.Query("search")
+	category := c.Query("category")
 	isTrashed := c.Query("is_trashed") == "true"
 
 	var isActive *bool
@@ -97,7 +98,7 @@ func (h *TemplateHandler) GetAllTemplates(c *gin.Context) {
 		}
 	}
 
-	templates, total, err := h.templateService.GetAllTemplates(page, perPage, search, isActive, isTrashed)
+	templates, total, err := h.templateService.GetAllTemplates(page, perPage, search, category, isActive, isTrashed)
 	if err != nil {
 		response.InternalServerError(c, "Failed to retrieve templates: "+err.Error())
 		return

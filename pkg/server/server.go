@@ -247,8 +247,12 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		admin.DELETE("/orders/:id/force", middleware.SuperAdminOnly(), orderHandler.ForceDeleteOrder)
 	}
 
-	// Public / Client Accessible Feature List
+	// Public / Client Accessible Features & Templates List
 	api.GET("/features", featureHandler.GetAllFeatures)
+	api.GET("/templates", templateHandler.GetAllTemplates)
+	api.GET("/templates/:id", templateHandler.GetTemplate)
+	r.GET("/api/templates", templateHandler.GetAllTemplates)
+	r.GET("/api/templates/:id", templateHandler.GetTemplate)
 
 	// Public Checkout & Webhooks (accessible via both /api/v1 and /api prefix)
 	api.POST("/checkout", orderHandler.Checkout)

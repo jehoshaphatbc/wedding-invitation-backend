@@ -125,6 +125,10 @@ func (h *ClientPortalHandler) UpdateInvitation(c *gin.Context) {
 
 	invitation, err := h.portalService.UpdateInvitation(order.ID, order.ClientID, order.PackageID, req, ip, userAgent)
 	if err != nil {
+		if strings.Contains(err.Error(), "permanently locked") {
+			response.BadRequest(c, err.Error())
+			return
+		}
 		response.InternalServerError(c, "Failed to update invitation: "+err.Error())
 		return
 	}

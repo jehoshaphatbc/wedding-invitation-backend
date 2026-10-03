@@ -73,7 +73,7 @@ func TestHTTPSeeder_Success(t *testing.T) {
 		assert.Equal(t, float64(3), resp.Data["packages_seeded"])
 		assert.Equal(t, float64(3), resp.Data["clients_seeded"])
 		assert.Equal(t, float64(5), resp.Data["orders_seeded"])
-		assert.Equal(t, float64(3), resp.Data["invitations_seeded"])
+		assert.Equal(t, float64(2), resp.Data["invitations_seeded"])
 		assert.Equal(t, float64(10), resp.Data["guests_seeded"])
 
 		// 0. Verify Templates in DB
@@ -109,16 +109,36 @@ func TestHTTPSeeder_Success(t *testing.T) {
 		assert.NotNil(t, samplePaidOrder.FormToken)
 		assert.Nil(t, samplePaidOrder.ScannerToken) // has_qr == false -> scanner_token must be nil/NULL
 
+		var draftPaidOrder models.Order
+		err = tx.Where("invoice_number = ?", "INV-SEED-002").First(&draftPaidOrder).Error
+		require.NoError(t, err)
+		assert.NotNil(t, draftPaidOrder.FormToken)
+
 		var platinumPaidOrder models.Order
 		err = tx.Where("invoice_number = ?", "INV-SEED-003").First(&platinumPaidOrder).Error
 		require.NoError(t, err)
 		assert.NotNil(t, platinumPaidOrder.FormToken)
 		assert.NotNil(t, platinumPaidOrder.ScannerToken) // has_qr == true -> scanner_token generated
 
-		// 4. Verify Invitations in DB
-		var invCount int64
-		tx.Model(&models.Invitation{}).Where("slug LIKE ? OR slug LIKE ? OR slug LIKE ?", "%budi-ani%", "%siti-rizky%", "%dimas-putri%").Count(&invCount)
-		assert.GreaterOrEqual(t, invCount, int64(3))
+		// 4. Verify Invitations in DB (Order 1: published, Order 2: draft, Order 3: nil)
+		var publishedInv, draftInv models.Invitation
+		err = tx.Where("order_id = ?", samplePaidOrder.ID).First(&publishedInv).Error
+		require.NoError(t, err)
+		assert.Equal(t, "published", publishedInv.Status)
+		assert.NotNil(t, publishedInv.Groom)
+		assert.NotNil(t, publishedInv.Bride)
+		assert.NotNil(t, publishedInv.Event)
+
+		err = tx.Where("order_id = ?", draftPaidOrder.ID).First(&draftInv).Error
+		require.NoError(t, err)
+		assert.Equal(t, "draft", draftInv.Status)
+		assert.Nil(t, draftInv.Groom)
+		assert.Nil(t, draftInv.Bride)
+		assert.Nil(t, draftInv.Event)
+
+		var thirdInvCount int64
+		tx.Model(&models.Invitation{}).Where("order_id = ?", platinumPaidOrder.ID).Count(&thirdInvCount)
+		assert.Equal(t, int64(0), thirdInvCount)
 
 		// 5. Verify Guests in DB
 		var guestCount int64

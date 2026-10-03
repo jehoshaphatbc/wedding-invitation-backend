@@ -102,6 +102,7 @@ func TestClientPortal_AuthVerifyAndInvitation(t *testing.T) {
 		assert.Equal(t, "Paket Platinum", resp.Data.Package.Name)
 		assert.Equal(t, true, resp.Data.Package.FeaturesConfig["has_qr"])
 		assert.Equal(t, true, resp.Data.Package.FeaturesConfig["has_story"])
+		assert.False(t, resp.Data.IsSetupCompleted, "is_setup_completed must be false before setup is saved")
 		assert.Nil(t, resp.Data.Invitation, "Invitation must be null before setup is saved")
 	})
 
@@ -223,6 +224,8 @@ func TestClientPortal_AuthVerifyAndInvitation(t *testing.T) {
 		}
 		require.NoError(t, json.Unmarshal(wVerify.Body.Bytes(), &respVerify))
 		assert.NotNil(t, respVerify.Data.Invitation)
+		assert.True(t, respVerify.Data.IsSetupCompleted)
+		assert.Equal(t, "published", respVerify.Data.Invitation.Status)
 		assert.Equal(t, order.ID, respVerify.Data.Invitation.OrderID)
 	})
 
@@ -251,6 +254,58 @@ func TestClientPortal_AuthVerifyAndInvitation(t *testing.T) {
 		assert.Equal(t, "Kisah cinta yang diperbarui...", resp.Data["story"])
 	})
 
+	t.Run("Theme Immutability: 400 Bad Request when trying to change template_id after initial setup", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"theme": map[string]interface{}{
+				"template_id":        "tpl-different-id",
+				"template_component": "TemplateClassicElegance",
+			},
+		}
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest(http.MethodPut, "/api/v1/client/invitation", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+formToken)
+
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var resp struct {
+			Success bool   `json:"success"`
+			Message string `json:"message"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		assert.False(t, resp.Success)
+		assert.Equal(t, "Template theme is permanently locked and cannot be changed after initial setup.", resp.Message)
+	})
+
+	t.Run("Theme Immutability: 200 OK when retaining the same template_id", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"theme": map[string]interface{}{
+				"template_id":   "tpl-1",
+				"primary_color": "#123456",
+			},
+		}
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest(http.MethodPut, "/api/v1/client/invitation", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+formToken)
+
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var resp struct {
+			Success bool                   `json:"success"`
+			Message string                 `json:"message"`
+			Data    map[string]interface{} `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		assert.True(t, resp.Success)
+	})
+
 	t.Run("POST /api/v1/invitation/setup: 200 OK alias works", func(t *testing.T) {
 		payload := map[string]interface{}{
 			"story": "Kisah cinta via setup endpoint",
@@ -273,5 +328,41 @@ func TestClientPortal_AuthVerifyAndInvitation(t *testing.T) {
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 		assert.True(t, resp.Success)
 		assert.Equal(t, "Data undangan berhasil disimpan", resp.Message)
+	})
+
+	t.Run("Draft invitation without groom/bride returns is_setup_completed: false and invitation: null", func(t *testing.T) {
+		draftFormToken := uuid.New().String()
+		draftOrder := &models.Order{
+			InvoiceNumber: "INV-DRAFT-TEST-001",
+			ClientID:      client.ID,
+			PackageID:     pkg.ID,
+			TotalAmount:   1500000,
+			Status:        models.OrderStatusPaid,
+			FormToken:     &draftFormToken,
+		}
+		require.NoError(t, tx.Create(draftOrder).Error)
+
+		draftInv := &models.Invitation{
+			OrderID:   draftOrder.ID,
+			ClientID:  client.ID,
+			PackageID: pkg.ID,
+			Title:     "Draft Invitation",
+			Status:    "draft",
+		}
+		require.NoError(t, tx.Create(draftInv).Error)
+
+		req, _ := http.NewRequest(http.MethodGet, "/api/v1/client/auth-verify?token="+draftFormToken, nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var resp struct {
+			Success bool                            `json:"success"`
+			Data    models.ClientAuthVerifyResponse `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		assert.True(t, resp.Success)
+		assert.False(t, resp.Data.IsSetupCompleted)
+		assert.Nil(t, resp.Data.Invitation)
 	})
 }

@@ -236,51 +236,153 @@ func SeedDummyData(tx *gorm.DB) (map[string]int, error) {
 	}
 
 	// ------------------------------------------------------------------
-	// STEP 4: INVITATIONS (3 Data linked to Paid Orders)
+	// STEP 4: INVITATIONS (Scenario 1: Completed Setup, Scenario 2: Draft/Nil)
 	// ------------------------------------------------------------------
 	slug1 := "budi-ani"
 	slug2 := "siti-rizky"
-	slug3 := "dimas-putri"
-
-	invitationsData := []struct {
-		Title string
-		Slug  *string
-	}{
-		{"The Wedding of Budi & Ani", &slug1},
-		{"The Wedding of Siti & Rizky", &slug2},
-		{"The Wedding of Dimas & Putri", &slug3},
-	}
 
 	var targetInvitationID uuid.UUID
 
 	for i, po := range paidOrders {
-		if i >= len(invitationsData) {
-			break
-		}
-		invData := invitationsData[i]
-		slugCandidate := *invData.Slug
-		var existingSlug models.Invitation
-		if err := tx.Where("slug = ? AND order_id != ?", slugCandidate, po.ID).First(&existingSlug).Error; err == nil {
-			slugCandidate = fmt.Sprintf("%s-auto", slugCandidate)
-		}
+		switch i {
+		case 0:
+			// Skenario 1: Order yang benar-benar sudah mengisi setup (lengkap & published)
+			slugCandidate := slug1
+			var existingSlug models.Invitation
+			if err := tx.Where("slug = ? AND order_id != ?", slugCandidate, po.ID).First(&existingSlug).Error; err == nil {
+				slugCandidate = fmt.Sprintf("%s-auto", slugCandidate)
+			}
 
-		inv := models.Invitation{
-			OrderID:   po.ID,
-			ClientID:  po.ClientID,
-			PackageID: po.PackageID,
-			Title:     invData.Title,
-			Slug:      &slugCandidate,
-			Status:    "published",
-		}
+			groomData := map[string]interface{}{
+				"full_name": "Budi Pratama, S.Kom.",
+				"nickname":  "Budi",
+				"parents":   "Putra dari Bpk. Santoso & Ibu Ratna",
+				"instagram": "budipratama",
+			}
+			brideData := map[string]interface{}{
+				"full_name": "Ani Wijaya, S.E.",
+				"nickname":  "Ani",
+				"parents":   "Putri dari Bpk. Bambang & Ibu Siti",
+				"instagram": "aniwijaya",
+			}
+			eventData := map[string]interface{}{
+				"akad_date":            "2026-12-25",
+				"akad_time":            "Pukul 08:00 - 10:00 WIB",
+				"akad_time_start":      "08:00",
+				"akad_time_end":        "10:00",
+				"akad_timezone":        "WIB",
+				"reception_date":       "2026-12-25",
+				"reception_time":       "Pukul 11:00 - 13:00 WIB",
+				"reception_time_start": "11:00",
+				"reception_time_end":   "13:00",
+				"reception_timezone":   "WIB",
+				"is_same_location":     true,
+				"venue_name":           "Grand Ballroom Hotel Mulia",
+				"address":              "Jl. Asia Afrika No. 8, Jakarta Pusat",
+				"maps_url":             "https://maps.app.goo.gl/dummy",
+			}
+			themeData := map[string]interface{}{
+				"template_id":        "tpl-1",
+				"template_component": "TemplateRomanticFloral",
+				"primary_color":      "#B76E79",
+			}
+			storyData := "Perjalanan cinta kami dimulai di bangku kuliah hingga akhirnya memutuskan melangkah ke jenjang pernikahan."
+			galleryData := []string{
+				"https://images.unsplash.com/photo-1519741497674-611481863552",
+				"https://images.unsplash.com/photo-1511285560929-80b456fea0bc",
+			}
+			giftsData := []map[string]interface{}{
+				{
+					"id":             "gift-1",
+					"bank_name":      "BCA",
+					"account_number": "1234567890",
+					"account_holder": "Budi Pratama",
+					"notes":          "Rekening Utama",
+				},
+			}
 
-		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&inv).Error; err != nil {
-			return nil, fmt.Errorf("failed to seed invitation: %w", err)
-		}
+			inv := models.Invitation{
+				OrderID:   po.ID,
+				ClientID:  po.ClientID,
+				PackageID: po.PackageID,
+				Title:     "The Wedding of Budi & Ani",
+				Slug:      &slugCandidate,
+				Status:    "published",
+				Groom:     groomData,
+				Bride:     brideData,
+				Event:     eventData,
+				Theme:     themeData,
+				Story:     storyData,
+				Gallery:   galleryData,
+				Gifts:     giftsData,
+			}
 
-		var persistedInv models.Invitation
-		if err := tx.Where("order_id = ?", po.ID).First(&persistedInv).Error; err == nil {
-			if i == 0 {
-				targetInvitationID = persistedInv.ID
+			var existingInv models.Invitation
+			if err := tx.Where("order_id = ?", po.ID).First(&existingInv).Error; err == nil {
+				existingInv.Title = inv.Title
+				existingInv.Slug = inv.Slug
+				existingInv.Status = inv.Status
+				existingInv.Groom = inv.Groom
+				existingInv.Bride = inv.Bride
+				existingInv.Event = inv.Event
+				existingInv.Theme = inv.Theme
+				existingInv.Story = inv.Story
+				existingInv.Gallery = inv.Gallery
+				existingInv.Gifts = inv.Gifts
+				if err := tx.Save(&existingInv).Error; err != nil {
+					return nil, fmt.Errorf("failed to update invitation %s: %w", inv.Title, err)
+				}
+				targetInvitationID = existingInv.ID
+			} else {
+				if err := tx.Create(&inv).Error; err != nil {
+					return nil, fmt.Errorf("failed to seed invitation %s: %w", inv.Title, err)
+				}
+				targetInvitationID = inv.ID
+			}
+
+		case 1:
+			// Skenario 2a: Order baru yang belum mengisi formulir (status "draft", data kosong)
+			slugCandidate := slug2
+			var existingSlug models.Invitation
+			if err := tx.Where("slug = ? AND order_id != ?", slugCandidate, po.ID).First(&existingSlug).Error; err == nil {
+				slugCandidate = fmt.Sprintf("%s-auto", slugCandidate)
+			}
+
+			inv := models.Invitation{
+				OrderID:   po.ID,
+				ClientID:  po.ClientID,
+				PackageID: po.PackageID,
+				Title:     "The Wedding of Siti & Rizky",
+				Slug:      &slugCandidate,
+				Status:    "draft",
+			}
+
+			var existingInv models.Invitation
+			if err := tx.Where("order_id = ?", po.ID).First(&existingInv).Error; err == nil {
+				existingInv.Title = inv.Title
+				existingInv.Slug = inv.Slug
+				existingInv.Status = "draft"
+				existingInv.Groom = nil
+				existingInv.Bride = nil
+				existingInv.Event = nil
+				existingInv.Theme = nil
+				existingInv.Story = nil
+				existingInv.Gallery = nil
+				existingInv.Gift = nil
+				existingInv.Gifts = nil
+				if err := tx.Save(&existingInv).Error; err != nil {
+					return nil, fmt.Errorf("failed to update draft invitation: %w", err)
+				}
+			} else {
+				if err := tx.Create(&inv).Error; err != nil {
+					return nil, fmt.Errorf("failed to seed draft invitation: %w", err)
+				}
+			}
+
+		case 2:
+			// Skenario 2b: Order baru yang belum ada record invitation sama sekali (invitation: nil)
+			if err := tx.Where("order_id = ?", po.ID).Delete(&models.Invitation{}).Error; err != nil {
+				return nil, fmt.Errorf("failed to clean up invitation for order 3: %w", err)
 			}
 		}
 	}
@@ -321,7 +423,7 @@ func SeedDummyData(tx *gorm.DB) (map[string]int, error) {
 		"packages_seeded":    len(packages),
 		"clients_seeded":     len(clients),
 		"orders_seeded":      len(ordersData),
-		"invitations_seeded": len(invitationsData),
+		"invitations_seeded": 2,
 		"guests_seeded":      10,
 	}
 

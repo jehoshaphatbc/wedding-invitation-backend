@@ -317,12 +317,13 @@ type UpdateClientInvitationRequest struct {
 }
 
 type ClientAuthVerifyResponse struct {
-	Valid      bool                  `json:"valid"`
-	Token      string                `json:"token"`
-	Client     *ClientSummary        `json:"client"`
-	Order      ClientOrderSummary    `json:"order"`
-	Package    *ClientPackageSummary `json:"package"`
-	Invitation *Invitation           `json:"invitation"`
+	Valid            bool                  `json:"valid"`
+	Token            string                `json:"token"`
+	IsSetupCompleted bool                  `json:"is_setup_completed"`
+	Client           *ClientSummary        `json:"client"`
+	Order            ClientOrderSummary    `json:"order"`
+	Package          *ClientPackageSummary `json:"package"`
+	Invitation       *Invitation           `json:"invitation"`
 }
 
 type ClientOrderSummary struct {

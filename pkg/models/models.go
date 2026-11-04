@@ -217,15 +217,18 @@ func (p *Package) BeforeCreate(tx *gorm.DB) error {
 }
 
 type Template struct {
-	ID            uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
-	Name          string         `gorm:"type:varchar(255);not null" json:"name"`
-	Category      string         `gorm:"type:varchar(50);default:'classic'" json:"category"`
-	NuxtComponent string         `gorm:"type:varchar(255);not null" json:"nuxt_component"`
-	ThumbnailURL  *string        `gorm:"type:varchar(255)" json:"thumbnail_url,omitempty"`
-	IsActive      bool           `gorm:"not null;default:true" json:"is_active"`
-	CreatedAt     time.Time      `json:"created_at"`
-	UpdatedAt     time.Time      `json:"updated_at"`
-	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
+	ID                    uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
+	Name                  string         `gorm:"type:varchar(255);not null" json:"name"`
+	Slug                  string         `gorm:"type:varchar(100);index" json:"slug"`
+	Category              string         `gorm:"type:varchar(50);default:'classic'" json:"category"`
+	NuxtComponent         string         `gorm:"type:varchar(255);not null" json:"nuxt_component"`
+	ThumbnailURL          *string        `gorm:"type:varchar(255)" json:"thumbnail_url,omitempty"`
+	Description           *string        `gorm:"type:text" json:"description,omitempty"`
+	DefaultFeaturesConfig FeaturesConfig `gorm:"type:jsonb;serializer:json" json:"default_features_config,omitempty"`
+	IsActive              bool           `gorm:"not null;default:true" json:"is_active"`
+	CreatedAt             time.Time      `json:"created_at"`
+	UpdatedAt             time.Time      `json:"updated_at"`
+	DeletedAt             gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 func (t *Template) BeforeCreate(tx *gorm.DB) error {
@@ -306,34 +309,42 @@ func (o *Order) BeforeCreate(tx *gorm.DB) error {
 }
 
 type Invitation struct {
-	ID          uuid.UUID              `gorm:"type:uuid;primaryKey" json:"id"`
-	OrderID     uuid.UUID              `gorm:"type:uuid;not null;uniqueIndex" json:"order_id"`
-	ClientID    uuid.UUID              `gorm:"type:uuid;not null;index" json:"client_id"`
-	PackageID   uuid.UUID              `gorm:"type:uuid;not null;index" json:"package_id"`
-	Title       string                 `gorm:"type:varchar(255);not null;default:'Draft Undangan'" json:"title"`
-	Slug        *string                `gorm:"type:varchar(255);uniqueIndex" json:"slug,omitempty"`
-	Status      string                 `gorm:"type:varchar(50);not null;default:'draft'" json:"status"`
-	Groom       interface{}            `gorm:"type:jsonb;serializer:json" json:"groom,omitempty"`
-	Bride       interface{}            `gorm:"type:jsonb;serializer:json" json:"bride,omitempty"`
-	Event       interface{}            `gorm:"type:jsonb;serializer:json" json:"event,omitempty"`
-	Theme       interface{}            `gorm:"type:jsonb;serializer:json" json:"theme,omitempty"`
-	Story       interface{}            `gorm:"type:jsonb;serializer:json" json:"story,omitempty"`
-	Gallery     interface{}            `gorm:"type:jsonb;serializer:json" json:"gallery,omitempty"`
-	Gift        interface{}            `gorm:"type:jsonb;serializer:json" json:"gift,omitempty"`
-	Gifts       interface{}            `gorm:"type:jsonb;serializer:json" json:"gifts,omitempty"`
-	GroomData   map[string]interface{} `gorm:"type:jsonb;serializer:json" json:"groom_data,omitempty"`
-	BrideData   map[string]interface{} `gorm:"type:jsonb;serializer:json" json:"bride_data,omitempty"`
-	EventsData  interface{}            `gorm:"type:jsonb;serializer:json" json:"events_data,omitempty"`
-	StoryData   interface{}            `gorm:"type:jsonb;serializer:json" json:"story_data,omitempty"`
-	GalleryURLs []string               `gorm:"type:jsonb;serializer:json" json:"gallery_urls,omitempty"`
-	CreatedAt   time.Time              `json:"created_at"`
-	UpdatedAt   time.Time              `json:"updated_at"`
-	DeletedAt   gorm.DeletedAt         `gorm:"index" json:"-"`
+	ID                  uuid.UUID              `gorm:"type:uuid;primaryKey" json:"id"`
+	OrderID             uuid.UUID              `gorm:"type:uuid;not null;uniqueIndex" json:"order_id"`
+	ClientID            uuid.UUID              `gorm:"type:uuid;not null;index" json:"client_id"`
+	PackageID           uuid.UUID              `gorm:"type:uuid;not null;index" json:"package_id"`
+	TemplateID          *uuid.UUID             `gorm:"type:uuid;index" json:"template_id,omitempty"`
+	Title               string                 `gorm:"type:varchar(255);not null;default:'Draft Undangan'" json:"title"`
+	Slug                *string                `gorm:"type:varchar(255);uniqueIndex" json:"slug,omitempty"`
+	Status              string                 `gorm:"type:varchar(50);not null;default:'draft'" json:"status"`
+	AudioURL            *string                `gorm:"type:text" json:"audio_url,omitempty"`
+	VerseText           *string                `gorm:"type:text" json:"verse_text,omitempty"`
+	VerseRef            *string                `gorm:"type:varchar(100)" json:"verse_ref,omitempty"`
+	CountdownTargetDate *string                `gorm:"type:varchar(100)" json:"countdown_target_date,omitempty"`
+	Events              interface{}            `gorm:"type:jsonb;serializer:json" json:"events,omitempty"`
+	Groom               interface{}            `gorm:"type:jsonb;serializer:json" json:"groom,omitempty"`
+	Bride               interface{}            `gorm:"type:jsonb;serializer:json" json:"bride,omitempty"`
+	Event               interface{}            `gorm:"type:jsonb;serializer:json" json:"event,omitempty"`
+	Theme               interface{}            `gorm:"type:jsonb;serializer:json" json:"theme,omitempty"`
+	Story               interface{}            `gorm:"type:jsonb;serializer:json" json:"story,omitempty"`
+	Gallery             interface{}            `gorm:"type:jsonb;serializer:json" json:"gallery,omitempty"`
+	Gift                interface{}            `gorm:"type:jsonb;serializer:json" json:"gift,omitempty"`
+	Gifts               interface{}            `gorm:"type:jsonb;serializer:json" json:"gifts,omitempty"`
+	GroomData           map[string]interface{} `gorm:"type:jsonb;serializer:json" json:"groom_data,omitempty"`
+	BrideData           map[string]interface{} `gorm:"type:jsonb;serializer:json" json:"bride_data,omitempty"`
+	EventsData          interface{}            `gorm:"type:jsonb;serializer:json" json:"events_data,omitempty"`
+	StoryData           interface{}            `gorm:"type:jsonb;serializer:json" json:"story_data,omitempty"`
+	GalleryURLs         []string               `gorm:"type:jsonb;serializer:json" json:"gallery_urls,omitempty"`
+	CreatedAt           time.Time              `json:"created_at"`
+	UpdatedAt           time.Time              `json:"updated_at"`
+	DeletedAt           gorm.DeletedAt         `gorm:"index" json:"-"`
 
-	Order   *Order   `gorm:"foreignKey:OrderID" json:"order,omitempty"`
-	Client  *Client  `gorm:"foreignKey:ClientID" json:"client,omitempty"`
-	Package *Package `gorm:"foreignKey:PackageID" json:"package,omitempty"`
-	Guests  []Guest  `gorm:"foreignKey:InvitationID" json:"guests,omitempty"`
+	Order    *Order    `gorm:"foreignKey:OrderID" json:"order,omitempty"`
+	Client   *Client   `gorm:"foreignKey:ClientID" json:"client,omitempty"`
+	Package  *Package  `gorm:"foreignKey:PackageID" json:"package,omitempty"`
+	Template *Template `gorm:"foreignKey:TemplateID" json:"template,omitempty"`
+	Guests   []Guest   `gorm:"foreignKey:InvitationID" json:"guests,omitempty"`
+	Wishes   []Wish    `gorm:"foreignKey:InvitationID" json:"wishes,omitempty"`
 }
 
 func (i *Invitation) BeforeCreate(tx *gorm.DB) error {
@@ -353,6 +364,7 @@ type Guest struct {
 	RSVPStatus       string         `gorm:"type:varchar(20);default:'pending'" json:"rsvp_status"` // 'hadir', 'tidak_hadir', 'pending'
 	ActualAttendance bool           `gorm:"default:false" json:"actual_attendance"`
 	AttendanceTime   *time.Time     `gorm:"type:timestamptz" json:"attendance_time,omitempty"`
+	Message          *string        `gorm:"type:text" json:"message,omitempty"`
 	CreatedAt        time.Time      `json:"created_at"`
 	UpdatedAt        time.Time      `json:"updated_at"`
 	DeletedAt        gorm.DeletedAt `gorm:"index" json:"-"`
@@ -363,6 +375,27 @@ type Guest struct {
 func (g *Guest) BeforeCreate(tx *gorm.DB) error {
 	if g.ID == uuid.Nil {
 		g.ID = uuid.New()
+	}
+	return nil
+}
+
+type Wish struct {
+	ID               uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
+	InvitationID     uuid.UUID      `gorm:"type:uuid;not null;index" json:"invitation_id"`
+	GuestName        string         `gorm:"type:varchar(255);not null" json:"guest_name"`
+	AttendanceStatus string         `gorm:"type:varchar(50);default:'hadir'" json:"attendance_status"`
+	NumberOfGuests   int            `gorm:"default:1" json:"number_of_guests"`
+	Message          string         `gorm:"type:text;not null" json:"message"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+	DeletedAt        gorm.DeletedAt `gorm:"index" json:"-"`
+
+	Invitation *Invitation `gorm:"foreignKey:InvitationID" json:"invitation,omitempty"`
+}
+
+func (w *Wish) BeforeCreate(tx *gorm.DB) error {
+	if w.ID == uuid.Nil {
+		w.ID = uuid.New()
 	}
 	return nil
 }

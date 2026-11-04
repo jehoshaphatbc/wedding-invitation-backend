@@ -76,6 +76,7 @@ func (h *SeederHandler) Execute(c *gin.Context) {
 			"orders_seeded":      stats["orders_seeded"],
 			"invitations_seeded": stats["invitations_seeded"],
 			"guests_seeded":      stats["guests_seeded"],
+			"wishes_seeded":      stats["wishes_seeded"],
 		},
 	})
 }

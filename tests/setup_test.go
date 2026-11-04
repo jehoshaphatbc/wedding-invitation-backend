@@ -168,6 +168,22 @@ func setupTestRouter(tx *gorm.DB) *gin.Engine {
 	r.POST("/api/checkout", orderHandler.Checkout)
 	r.POST("/api/webhook/payment", orderHandler.PaymentWebhook)
 
+	// Public Invitations
+	wishRepo := repositories.NewWishRepository(tx)
+	guestRepo := repositories.NewGuestRepository(tx)
+	publicInvitationService := services.NewPublicInvitationService(invitationRepo, templateRepo, guestRepo, wishRepo)
+	publicInvitationHandler := handlers.NewPublicInvitationHandler(publicInvitationService)
+
+	api.GET("/invitations/slug/:slug", publicInvitationHandler.GetBySlug)
+	api.GET("/public/invitations/:slug", publicInvitationHandler.GetBySlug)
+	api.POST("/invitations/:id/rsvp", publicInvitationHandler.SubmitRSVP)
+	api.GET("/invitations/:id/wishes", publicInvitationHandler.GetWishes)
+
+	r.GET("/api/invitations/slug/:slug", publicInvitationHandler.GetBySlug)
+	r.GET("/api/public/invitations/:slug", publicInvitationHandler.GetBySlug)
+	r.POST("/api/invitations/:id/rsvp", publicInvitationHandler.SubmitRSVP)
+	r.GET("/api/invitations/:id/wishes", publicInvitationHandler.GetWishes)
+
 	// Direct /api/admin aliases
 	apiAdmin := r.Group("/api/admin")
 	{
@@ -198,7 +214,6 @@ func setupTestRouter(tx *gorm.DB) *gin.Engine {
 	r.POST("/api/seeder", seederHandler.Execute)
 
 	// Client Portal
-	guestRepo := repositories.NewGuestRepository(tx)
 	clientPortalService := services.NewClientPortalService(orderRepo, invitationRepo, auditRepo)
 	clientPortalHandler := handlers.NewClientPortalHandler(clientPortalService, orderRepo)
 	clientGuestService := services.NewClientGuestService(guestRepo, invitationRepo, auditRepo)

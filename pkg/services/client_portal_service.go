@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/models"
 	"github.com/jehoshaphatbc/wedding-invitation-backend/pkg/repositories"
@@ -63,7 +64,7 @@ func (s *ClientPortalService) VerifyToken(token string) (*models.ClientAuthVerif
 	}
 
 	isSetupCompleted := false
-	if invitation != nil {
+	if invitation != nil && !invitation.DeletedAt.Valid {
 		hasGroom := invitation.Groom != nil || invitation.GroomData != nil
 		hasBride := invitation.Bride != nil || invitation.BrideData != nil
 		hasEvent := invitation.Event != nil || invitation.EventsData != nil
@@ -74,7 +75,7 @@ func (s *ClientPortalService) VerifyToken(token string) (*models.ClientAuthVerif
 	}
 
 	var returnedInvitation *models.Invitation
-	if isSetupCompleted {
+	if isSetupCompleted && invitation != nil && !invitation.DeletedAt.Valid {
 		returnedInvitation = invitation
 	}
 
@@ -123,7 +124,7 @@ func (s *ClientPortalService) UpdateInvitation(orderID, clientID, packageID uuid
 
 	// 1. Theme Immutability Enforcement
 	existingTemplateID := ""
-	if invitation != nil && invitation.Theme != nil {
+	if invitation != nil && !invitation.DeletedAt.Valid && invitation.Theme != nil {
 		existingTemplateID = extractTemplateID(invitation.Theme)
 	}
 
@@ -154,6 +155,11 @@ func (s *ClientPortalService) UpdateInvitation(orderID, clientID, packageID uuid
 			Title:     title,
 			Status:    "draft",
 		}
+	} else if invitation.DeletedAt.Valid {
+		// Restore previously soft-deleted invitation record
+		invitation.DeletedAt = gorm.DeletedAt{}
+		invitation.ClientID = clientID
+		invitation.PackageID = packageID
 	}
 
 	if req.Title != nil && *req.Title != "" {

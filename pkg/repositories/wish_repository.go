@@ -29,3 +29,4 @@ func (r *wishRepository) FindByInvitationID(invitationID uuid.UUID) ([]models.Wi
 	err := r.db.Where("invitation_id = ?", invitationID).Order("created_at DESC").Find(&wishes).Error
 	return wishes, err
 }
+

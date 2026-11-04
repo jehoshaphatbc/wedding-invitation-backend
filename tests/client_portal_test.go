@@ -365,4 +365,58 @@ func TestClientPortal_AuthVerifyAndInvitation(t *testing.T) {
 		assert.False(t, resp.Data.IsSetupCompleted)
 		assert.Nil(t, resp.Data.Invitation)
 	})
+
+	t.Run("Save invitation when a soft-deleted invitation existed does not violate idx_invitations_order_id", func(t *testing.T) {
+		softDelToken := uuid.New().String()
+		softDelOrder := &models.Order{
+			InvoiceNumber: "INV-SOFTDEL-TEST-001",
+			ClientID:      client.ID,
+			PackageID:     pkg.ID,
+			TotalAmount:   1500000,
+			Status:        models.OrderStatusPaid,
+			FormToken:     &softDelToken,
+		}
+		require.NoError(t, tx.Create(softDelOrder).Error)
+
+		// Create an invitation then soft-delete it
+		softInv := &models.Invitation{
+			OrderID:   softDelOrder.ID,
+			ClientID:  client.ID,
+			PackageID: pkg.ID,
+			Title:     "Old Deleted Invitation",
+			Status:    "draft",
+		}
+		require.NoError(t, tx.Create(softInv).Error)
+		require.NoError(t, tx.Delete(softInv).Error)
+
+		// Now attempt to submit client setup form for this order
+		payload := map[string]interface{}{
+			"title": "Restored Wedding",
+			"groom": map[string]interface{}{
+				"full_name": "Dimas Pratama",
+				"nickname":  "Dimas",
+			},
+			"bride": map[string]interface{}{
+				"full_name": "Anisa Rahma",
+				"nickname":  "Anisa",
+			},
+		}
+		bodyBytes, _ := json.Marshal(payload)
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/client/invitation", bytes.NewBuffer(bodyBytes))
+		req.Header.Set("Authorization", "Bearer "+softDelToken)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var resp struct {
+			Success bool                   `json:"success"`
+			Message string                 `json:"message"`
+			Data    map[string]interface{} `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		assert.True(t, resp.Success)
+		assert.Equal(t, "Data undangan berhasil disimpan", resp.Message)
+		assert.Equal(t, "published", resp.Data["status"])
+	})
 }

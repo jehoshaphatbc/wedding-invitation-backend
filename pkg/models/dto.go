@@ -299,21 +299,27 @@ type PaymentWebhookRequest struct {
 
 // Client Portal DTOs
 type UpdateClientInvitationRequest struct {
-	Title       *string                `json:"title,omitempty"`
-	Slug        *string                `json:"slug,omitempty"`
-	Groom       interface{}            `json:"groom,omitempty"`
-	Bride       interface{}            `json:"bride,omitempty"`
-	Event       interface{}            `json:"event,omitempty"`
-	Theme       interface{}            `json:"theme,omitempty"`
-	Story       interface{}            `json:"story,omitempty"`
-	Gallery     interface{}            `json:"gallery,omitempty"`
-	Gift        interface{}            `json:"gift,omitempty"`
-	Gifts       interface{}            `json:"gifts,omitempty"`
-	GroomData   map[string]interface{} `json:"groom_data,omitempty"`
-	BrideData   map[string]interface{} `json:"bride_data,omitempty"`
-	EventsData  interface{}            `json:"events_data,omitempty"`
-	StoryData   interface{}            `json:"story_data,omitempty"`
-	GalleryURLs []string               `json:"gallery_urls,omitempty"`
+	Title               *string                `json:"title,omitempty"`
+	Slug                *string                `json:"slug,omitempty"`
+	TemplateID          *uuid.UUID             `json:"template_id,omitempty"`
+	AudioURL            *string                `json:"audio_url,omitempty"`
+	VerseText           *string                `json:"verse_text,omitempty"`
+	VerseRef            *string                `json:"verse_ref,omitempty"`
+	CountdownTargetDate *string                `json:"countdown_target_date,omitempty"`
+	Events              interface{}            `json:"events,omitempty"`
+	Groom               interface{}            `json:"groom,omitempty"`
+	Bride               interface{}            `json:"bride,omitempty"`
+	Event               interface{}            `json:"event,omitempty"`
+	Theme               interface{}            `json:"theme,omitempty"`
+	Story               interface{}            `json:"story,omitempty"`
+	Gallery             interface{}            `json:"gallery,omitempty"`
+	Gift                interface{}            `json:"gift,omitempty"`
+	Gifts               interface{}            `json:"gifts,omitempty"`
+	GroomData           map[string]interface{} `json:"groom_data,omitempty"`
+	BrideData           map[string]interface{} `json:"bride_data,omitempty"`
+	EventsData          interface{}            `json:"events_data,omitempty"`
+	StoryData           interface{}            `json:"story_data,omitempty"`
+	GalleryURLs         []string               `json:"gallery_urls,omitempty"`
 }
 
 type ClientAuthVerifyResponse struct {
@@ -375,4 +381,31 @@ type ClientGuestListResponse struct {
 	TotalTidakHadir int64                `json:"total_tidak_hadir"`
 	TotalPending    int64                `json:"total_pending"`
 	Summary         GuestSummaryResponse `json:"summary"`
+}
+
+// Public Invitation DTOs
+type PublicInvitationTemplate struct {
+	Name          string `json:"name"`
+	NuxtComponent string `json:"nuxt_component"`
+	Slug          string `json:"slug"`
+}
+
+type PublicInvitationData struct {
+	ID             uuid.UUID                `json:"id"`
+	Slug           string                   `json:"slug"`
+	TemplateID     *uuid.UUID               `json:"template_id"`
+	Template       PublicInvitationTemplate `json:"template"`
+	FeaturesConfig map[string]interface{}   `json:"features_config"`
+	Invitation     map[string]interface{}   `json:"invitation"`
+}
+
+type PublicRSVPRequest struct {
+	GuestName        string `json:"guest_name"`
+	AttendanceStatus string `json:"attendance_status"`
+	NumberOfGuests   int    `json:"number_of_guests"`
+	Message          string `json:"message"`
+	Name             string `json:"name,omitempty"`
+	Status           string `json:"status,omitempty"`
+	RSVPStatus       string `json:"rsvp_status,omitempty"`
+	Pax              int    `json:"pax,omitempty"`
 }

@@ -11,6 +11,7 @@ type TemplateRepository interface {
 	Create(template *models.Template) error
 	FindAll(page, perPage int, search, category string, isActive *bool, isTrashed bool) ([]models.Template, int64, error)
 	FindByID(id uuid.UUID) (*models.Template, error)
+	FindBySlug(slug string) (*models.Template, error)
 	Update(template *models.Template) error
 	Delete(id uuid.UUID) error
 	FindTrashedAll(page, perPage int, search, sort, order string) ([]models.Template, int64, error)
@@ -41,7 +42,7 @@ func (r *templateRepository) FindAll(page, perPage int, search, category string,
 
 	if search != "" {
 		searchPattern := "%" + search + "%"
-		query = query.Where("name ILIKE ? OR nuxt_component ILIKE ? OR category ILIKE ?", searchPattern, searchPattern, searchPattern)
+		query = query.Where("name ILIKE ? OR nuxt_component ILIKE ? OR category ILIKE ? OR slug ILIKE ?", searchPattern, searchPattern, searchPattern, searchPattern)
 	}
 
 	if category != "" {
@@ -71,6 +72,12 @@ func (r *templateRepository) FindByID(id uuid.UUID) (*models.Template, error) {
 	return &template, err
 }
 
+func (r *templateRepository) FindBySlug(slug string) (*models.Template, error) {
+	var template models.Template
+	err := r.db.Where("slug = ? OR nuxt_component = ?", slug, slug).First(&template).Error
+	return &template, err
+}
+
 func (r *templateRepository) Update(template *models.Template) error {
 	return r.db.Save(template).Error
 }
@@ -87,7 +94,7 @@ func (r *templateRepository) FindTrashedAll(page, perPage int, search, sort, ord
 
 	if search != "" {
 		searchPattern := "%" + search + "%"
-		query = query.Where("name ILIKE ? OR nuxt_component ILIKE ? OR category ILIKE ?", searchPattern, searchPattern, searchPattern)
+		query = query.Where("name ILIKE ? OR nuxt_component ILIKE ? OR category ILIKE ? OR slug ILIKE ?", searchPattern, searchPattern, searchPattern, searchPattern)
 	}
 
 	query.Model(&models.Template{}).Count(&total)

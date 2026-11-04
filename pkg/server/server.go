@@ -38,6 +38,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	orderRepo := repositories.NewOrderRepository(db)
 	invitationRepo := repositories.NewInvitationRepository(db)
 	guestRepo := repositories.NewGuestRepository(db)
+	wishRepo := repositories.NewWishRepository(db)
 
 	permissionRepo := repositories.NewPermissionRepository(db)
 	profileRepo := repositories.NewProfileRepository(db)
@@ -54,6 +55,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	orderService := services.NewOrderService(orderRepo, clientRepo, packageRepo, invitationRepo, auditRepo)
 	clientPortalService := services.NewClientPortalService(orderRepo, invitationRepo, auditRepo)
 	clientGuestService := services.NewClientGuestService(guestRepo, invitationRepo, auditRepo)
+	publicInvitationService := services.NewPublicInvitationService(invitationRepo, templateRepo, guestRepo, wishRepo)
 
 	companySettingService := services.NewCompanySettingService(companySettingRepo, auditRepo)
 	blobService := blob.NewBlobService(cfg)
@@ -68,6 +70,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	orderHandler := handlers.NewOrderHandler(orderService)
 	clientPortalHandler := handlers.NewClientPortalHandler(clientPortalService, orderRepo)
 	clientGuestHandler := handlers.NewClientGuestHandler(clientGuestService, orderRepo)
+	publicInvitationHandler := handlers.NewPublicInvitationHandler(publicInvitationService)
 
 	companySettingHandler := handlers.NewCompanySettingHandler(companySettingService, blobService)
 	uploadHandler := handlers.NewUploadHandler(blobService, cfg)
@@ -253,6 +256,18 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	api.GET("/templates/:id", templateHandler.GetTemplate)
 	r.GET("/api/templates", templateHandler.GetAllTemplates)
 	r.GET("/api/templates/:id", templateHandler.GetTemplate)
+
+	// Public Invitations, RSVP, and Wishes
+	api.GET("/invitations/slug/:slug", publicInvitationHandler.GetBySlug)
+	api.GET("/public/invitations/:slug", publicInvitationHandler.GetBySlug)
+	r.GET("/api/invitations/slug/:slug", publicInvitationHandler.GetBySlug)
+	r.GET("/api/public/invitations/:slug", publicInvitationHandler.GetBySlug)
+
+	api.POST("/invitations/:id/rsvp", publicInvitationHandler.SubmitRSVP)
+	r.POST("/api/invitations/:id/rsvp", publicInvitationHandler.SubmitRSVP)
+
+	api.GET("/invitations/:id/wishes", publicInvitationHandler.GetWishes)
+	r.GET("/api/invitations/:id/wishes", publicInvitationHandler.GetWishes)
 
 	// Public Checkout & Webhooks (accessible via both /api/v1 and /api prefix)
 	api.POST("/checkout", orderHandler.Checkout)

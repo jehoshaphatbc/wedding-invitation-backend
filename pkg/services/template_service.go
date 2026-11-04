@@ -12,11 +12,14 @@ import (
 )
 
 type TemplateRequest struct {
-	Name          string  `json:"name" form:"name" binding:"required"`
-	Category      string  `json:"category" form:"category"`
-	NuxtComponent string  `json:"nuxt_component" form:"nuxt_component" binding:"required"`
-	ThumbnailURL  *string `json:"thumbnail_url" form:"thumbnail_url"`
-	IsActive      *bool   `json:"is_active" form:"is_active"`
+	Name                  string                 `json:"name" form:"name" binding:"required"`
+	Slug                  string                 `json:"slug" form:"slug"`
+	Category              string                 `json:"category" form:"category"`
+	NuxtComponent         string                 `json:"nuxt_component" form:"nuxt_component" binding:"required"`
+	ThumbnailURL          *string                `json:"thumbnail_url" form:"thumbnail_url"`
+	Description           *string                `json:"description" form:"description"`
+	DefaultFeaturesConfig models.FeaturesConfig `json:"default_features_config" form:"default_features_config"`
+	IsActive              *bool                  `json:"is_active" form:"is_active"`
 }
 
 type TemplateService struct {
@@ -56,12 +59,20 @@ func (s *TemplateService) CreateTemplate(req TemplateRequest) (*models.Template,
 		category = "classic"
 	}
 
+	slugVal := strings.TrimSpace(req.Slug)
+	if slugVal == "" {
+		slugVal = strings.ToLower(strings.ReplaceAll(strings.TrimSpace(req.Name), " ", "-"))
+	}
+
 	template := &models.Template{
-		Name:          req.Name,
-		Category:      category,
-		NuxtComponent: req.NuxtComponent,
-		ThumbnailURL:  req.ThumbnailURL,
-		IsActive:      isActive,
+		Name:                  req.Name,
+		Slug:                  slugVal,
+		Category:              category,
+		NuxtComponent:         req.NuxtComponent,
+		ThumbnailURL:          req.ThumbnailURL,
+		Description:           req.Description,
+		DefaultFeaturesConfig: req.DefaultFeaturesConfig,
+		IsActive:              isActive,
 	}
 
 	if err := s.templateRepo.Create(template); err != nil {
@@ -99,6 +110,9 @@ func (s *TemplateService) UpdateTemplate(id uuid.UUID, req TemplateRequest) (*mo
 	}
 
 	template.Name = req.Name
+	if req.Slug != "" {
+		template.Slug = strings.TrimSpace(req.Slug)
+	}
 	if req.Category != "" {
 		template.Category = strings.TrimSpace(req.Category)
 	}
@@ -109,6 +123,12 @@ func (s *TemplateService) UpdateTemplate(id uuid.UUID, req TemplateRequest) (*mo
 		} else {
 			template.ThumbnailURL = req.ThumbnailURL
 		}
+	}
+	if req.Description != nil {
+		template.Description = req.Description
+	}
+	if req.DefaultFeaturesConfig != nil {
+		template.DefaultFeaturesConfig = req.DefaultFeaturesConfig
 	}
 	if req.IsActive != nil {
 		template.IsActive = *req.IsActive

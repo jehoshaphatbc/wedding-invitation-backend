@@ -32,7 +32,7 @@ func (r *invitationRepository) Create(invitation *models.Invitation) error {
 
 func (r *invitationRepository) FindByOrderID(orderID uuid.UUID) (*models.Invitation, error) {
 	var invitation models.Invitation
-	err := r.db.Where("order_id = ?", orderID).First(&invitation).Error
+	err := r.db.Unscoped().Where("order_id = ?", orderID).First(&invitation).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -83,5 +83,5 @@ func (r *invitationRepository) FindByIDOrSlug(idOrSlug string) (*models.Invitati
 }
 
 func (r *invitationRepository) Update(invitation *models.Invitation) error {
-	return r.db.Save(invitation).Error
+	return r.db.Unscoped().Save(invitation).Error
 }

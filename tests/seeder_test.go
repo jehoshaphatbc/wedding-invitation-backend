@@ -75,10 +75,11 @@ func TestHTTPSeeder_Success(t *testing.T) {
 		assert.Equal(t, float64(5), resp.Data["orders_seeded"])
 		assert.Equal(t, float64(2), resp.Data["invitations_seeded"])
 		assert.Equal(t, float64(10), resp.Data["guests_seeded"])
+		assert.Equal(t, float64(3), resp.Data["wishes_seeded"])
 
 		// 0. Verify Templates in DB
 		var tmplCount int64
-		tx.Model(&models.Template{}).Where("name IN ?", []string{"Elegant White", "Dark Rustic"}).Count(&tmplCount)
+		tx.Model(&models.Template{}).Where("name IN ?", []string{"Noir", "Scarlet Sketch"}).Count(&tmplCount)
 		assert.GreaterOrEqual(t, tmplCount, int64(2))
 
 		// 1. Verify Packages in DB

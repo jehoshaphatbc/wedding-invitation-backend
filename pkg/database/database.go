@@ -44,6 +44,7 @@ func Connect(cfg *config.Config) (*gorm.DB, error) {
 		&models.Order{},
 		&models.Invitation{},
 		&models.Guest{},
+		&models.Wish{},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to migrate database: %w", err)

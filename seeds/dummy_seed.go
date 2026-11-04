@@ -20,36 +20,86 @@ func strPtr(s string) *string {
 // automatically on startup/migration or via the HTTP seeder endpoint.
 func SeedDummyData(tx *gorm.DB) (map[string]int, error) {
 	// ------------------------------------------------------------------
-	// STEP 0: TEMPLATES (2 Default Templates: Elegant White & Dark Rustic)
+	// STEP 0: TEMPLATES (Noir & Scarlet Sketch, check migration from Harsava)
 	// ------------------------------------------------------------------
+	// Check migration / renaming: If "Harsava" exists, update to "Noir"
+	tx.Model(&models.Template{}).
+		Where("name ILIKE ? OR nuxt_component ILIKE ?", "%harsava%", "%harsava%").
+		Updates(map[string]interface{}{
+			"name":           "Noir",
+			"slug":           "noir",
+			"nuxt_component": "TemplateNoir",
+			"category":       "Modern Elegant",
+		})
+
+	descNoir := "Tema Luxury Dark Minimalist. Sticky desktop preview di kiri, scrollable content di kanan, responsive full width di tablet/mobile, interactive envelope cover modal."
+	descScarlet := "Tema Hand-drawn Sketch Wedding. Dominasi warna Scarlet Maroon (#9E0F00) dan Paper Background (#F5F2F0), tipografi Schoolbell, audio player timeline, amplop popup modal awal."
+
 	templatesData := []models.Template{
 		{
-			Name:          "Elegant White",
-			Category:      "classic",
-			NuxtComponent: "TemplateA",
-			ThumbnailURL:  strPtr("https://images.unsplash.com/photo-1519741497674-611481863552"),
-			IsActive:      true,
+			Name:          "Noir",
+			Slug:          "noir",
+			Category:      "Modern Elegant",
+			NuxtComponent: "TemplateNoir",
+			ThumbnailURL:  strPtr("/images/templates/noir-thumbnail.jpg"),
+			Description:   &descNoir,
+			DefaultFeaturesConfig: models.FeaturesConfig{
+				"has_countdown": true,
+				"has_gallery":   true,
+				"has_story":     true,
+				"has_gift":      true,
+				"has_rsvp":      true,
+				"has_video":     false,
+				"has_maps":      true,
+				"has_qr":        true,
+				"has_audio":     true,
+			},
+			IsActive: true,
 		},
 		{
-			Name:          "Dark Rustic",
-			Category:      "rustic",
-			NuxtComponent: "TemplateB",
-			ThumbnailURL:  strPtr("https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6"),
-			IsActive:      true,
+			Name:          "Scarlet Sketch",
+			Slug:          "scarlet-sketch",
+			Category:      "Vintage Sketch",
+			NuxtComponent: "TemplateScarletSketch",
+			ThumbnailURL:  strPtr("/images/templates/scarlet-sketch-thumbnail.jpg"),
+			Description:   &descScarlet,
+			DefaultFeaturesConfig: models.FeaturesConfig{
+				"has_countdown": true,
+				"has_gallery":   true,
+				"has_story":     false,
+				"has_gift":      true,
+				"has_rsvp":      true,
+				"has_video":     false,
+				"has_maps":      true,
+				"has_qr":        false,
+				"has_audio":     true,
+			},
+			IsActive: true,
 		},
 	}
 
+	persistedTemplates := make(map[string]models.Template)
 	for _, tmpl := range templatesData {
 		var existing models.Template
-		if err := tx.Where("name = ?", tmpl.Name).First(&existing).Error; err == nil {
-			if existing.Category == "" {
-				existing.Category = tmpl.Category
-				_ = tx.Save(&existing)
-			}
+		if err := tx.Where("name = ? OR slug = ? OR nuxt_component = ?", tmpl.Name, tmpl.Slug, tmpl.NuxtComponent).First(&existing).Error; err == nil {
+			existing.Name = tmpl.Name
+			existing.Slug = tmpl.Slug
+			existing.Category = tmpl.Category
+			existing.NuxtComponent = tmpl.NuxtComponent
+			existing.ThumbnailURL = tmpl.ThumbnailURL
+			existing.Description = tmpl.Description
+			existing.DefaultFeaturesConfig = tmpl.DefaultFeaturesConfig
+			existing.IsActive = tmpl.IsActive
+			_ = tx.Save(&existing)
+			persistedTemplates[tmpl.Slug] = existing
 			continue
 		}
 		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&tmpl).Error; err != nil {
 			return nil, fmt.Errorf("failed to seed template %s: %w", tmpl.Name, err)
+		}
+		var created models.Template
+		if err := tx.Where("slug = ?", tmpl.Slug).First(&created).Error; err == nil {
+			persistedTemplates[tmpl.Slug] = created
 		}
 	}
 
@@ -244,7 +294,7 @@ func SeedDummyData(tx *gorm.DB) (map[string]int, error) {
 	// ------------------------------------------------------------------
 	// STEP 4: INVITATIONS (Scenario 1: Completed Setup, Scenario 2: Draft/Nil)
 	// ------------------------------------------------------------------
-	slug1 := "budi-ani"
+	slug1 := "mulyo-cempaka"
 	slug2 := "siti-rizky"
 
 	var targetInvitationID uuid.UUID
@@ -259,81 +309,123 @@ func SeedDummyData(tx *gorm.DB) (map[string]int, error) {
 				slugCandidate = fmt.Sprintf("%s-auto", slugCandidate)
 			}
 
+			audioURL := "https://storage.domain.com/audio/God-Bless-The-Broken-Road.mp3"
+			verseText := "Dan di atas semuanya itu: kenakanlah kasih, sebagai pengikat yang mempersatukan dan menyempurnakan."
+			verseRef := "KOLOSE 3:14"
+			countdownDate := "2026-05-18T09:00:00+08:00"
+
 			groomData := map[string]interface{}{
-				"full_name": "Budi Pratama, S.Kom.",
-				"nickname":  "Budi",
-				"parents":   "Putra dari Bpk. Santoso & Ibu Ratna",
-				"instagram": "budipratama",
+				"name":      "Mulyo Aryawijaya",
+				"full_name": "Mulyo Aryawijaya",
+				"nickname":  "Mulyo",
+				"father":    "Bapak Arya",
+				"mother":    "Ibu Wijaya",
+				"parents":   "Putra dari Bapak Arya & Ibu Wijaya",
+				"instagram": "mulyoarya",
+				"photo_url": "https://storage.domain.com/photos/groom.jpg",
 			}
 			brideData := map[string]interface{}{
-				"full_name": "Ani Wijaya, S.E.",
-				"nickname":  "Ani",
-				"parents":   "Putri dari Bpk. Bambang & Ibu Siti",
-				"instagram": "aniwijaya",
+				"name":      "Putu Cempaka Giriyanti",
+				"full_name": "Putu Cempaka Giriyanti",
+				"nickname":  "Cempaka",
+				"father":    "Bapak Giri",
+				"mother":    "Ibu Yanti",
+				"parents":   "Putri dari Bapak Giri & Ibu Yanti",
+				"instagram": "cempakagiri",
+				"photo_url": "https://storage.domain.com/photos/bride.jpg",
 			}
-			eventData := map[string]interface{}{
-				"akad_date":            "2026-12-25",
-				"akad_time":            "Pukul 08:00 - 10:00 WIB",
-				"akad_time_start":      "08:00",
-				"akad_time_end":        "10:00",
-				"akad_timezone":        "WIB",
-				"reception_date":       "2026-12-25",
-				"reception_time":       "Pukul 11:00 - 13:00 WIB",
-				"reception_time_start": "11:00",
-				"reception_time_end":   "13:00",
-				"reception_timezone":   "WIB",
-				"is_same_location":     true,
-				"venue_name":           "Grand Ballroom Hotel Mulia",
-				"address":              "Jl. Asia Afrika No. 8, Jakarta Pusat",
-				"maps_url":             "https://maps.app.goo.gl/dummy",
+			eventsData := map[string]interface{}{
+				"holy_matrimony": map[string]interface{}{
+					"title":      "Holy Matrimony",
+					"date":       "2026-05-18",
+					"time_range": "09:00 - 11:00 WITA",
+					"location":   "Gereja Katedral Santo Roh Kudus",
+					"address":    "Jl. Tukad Musi No. 1, Denpasar, Bali",
+					"maps_url":   "https://maps.google.com/?q=...",
+				},
+				"reception": map[string]interface{}{
+					"title":      "Wedding Reception",
+					"date":       "2026-05-18",
+					"time_range": "18:00 WITA - Selesai",
+					"location":   "The Glass House Bali",
+					"address":    "Jl. Danau Tamblingan No. 89, Sanur, Bali",
+					"maps_url":   "https://maps.google.com/?q=...",
+				},
 			}
+			var templateID *uuid.UUID
+			if tmpl, ok := persistedTemplates["scarlet-sketch"]; ok {
+				templateID = &tmpl.ID
+			}
+
 			themeData := map[string]interface{}{
-				"template_id":        "tpl-1",
-				"template_component": "TemplateRomanticFloral",
-				"primary_color":      "#B76E79",
+				"template_id":        "scarlet-sketch",
+				"template_component": "TemplateScarletSketch",
+				"primary_color":      "#9E0F00",
 			}
-			storyData := "Perjalanan cinta kami dimulai di bangku kuliah hingga akhirnya memutuskan melangkah ke jenjang pernikahan."
+			storyData := "Perjalanan cinta kami dimulai di Denpasar hingga akhirnya memutuskan melangkah ke jenjang pernikahan."
 			galleryData := []string{
-				"https://images.unsplash.com/photo-1519741497674-611481863552",
-				"https://images.unsplash.com/photo-1511285560929-80b456fea0bc",
+				"https://storage.domain.com/gallery/photo1.jpg",
+				"https://storage.domain.com/gallery/photo2.jpg",
+				"https://storage.domain.com/gallery/photo3.jpg",
+			}
+			giftData := map[string]interface{}{
+				"bank_name":      "BCA",
+				"account_number": "127326134",
+				"account_name":   "Putu Cempaka Giriyanti Aryawijaya",
+				"qr_code_url":    nil,
 			}
 			giftsData := []map[string]interface{}{
 				{
 					"id":             "gift-1",
 					"bank_name":      "BCA",
-					"account_number": "1234567890",
-					"account_holder": "Budi Pratama",
+					"account_number": "127326134",
+					"account_name":   "Putu Cempaka Giriyanti Aryawijaya",
+					"account_holder": "Putu Cempaka Giriyanti Aryawijaya",
 					"notes":          "Rekening Utama",
 				},
 			}
 
 			inv := models.Invitation{
-				OrderID:   po.ID,
-				ClientID:  po.ClientID,
-				PackageID: po.PackageID,
-				Title:     "The Wedding of Budi & Ani",
-				Slug:      &slugCandidate,
-				Status:    "published",
-				Groom:     groomData,
-				Bride:     brideData,
-				Event:     eventData,
-				Theme:     themeData,
-				Story:     storyData,
-				Gallery:   galleryData,
-				Gifts:     giftsData,
+				OrderID:             po.ID,
+				ClientID:            po.ClientID,
+				PackageID:           po.PackageID,
+				TemplateID:          templateID,
+				Title:               "The Wedding of Mulyo & Cempaka",
+				Slug:                &slugCandidate,
+				Status:              "published",
+				AudioURL:            &audioURL,
+				VerseText:           &verseText,
+				VerseRef:            &verseRef,
+				CountdownTargetDate: &countdownDate,
+				Events:              eventsData,
+				Event:               eventsData,
+				Groom:               groomData,
+				Bride:               brideData,
+				Theme:               themeData,
+				Story:               storyData,
+				Gallery:             galleryData,
+				Gift:                giftData,
+				Gifts:               giftsData,
 			}
 
 			var existingInv models.Invitation
 			if err := tx.Where("order_id = ?", po.ID).First(&existingInv).Error; err == nil {
 				existingInv.Title = inv.Title
 				existingInv.Slug = inv.Slug
+				existingInv.TemplateID = inv.TemplateID
 				existingInv.Status = inv.Status
+				existingInv.AudioURL = inv.AudioURL
+				existingInv.VerseText = inv.VerseText
+				existingInv.VerseRef = inv.VerseRef
+				existingInv.CountdownTargetDate = inv.CountdownTargetDate
+				existingInv.Events = inv.Events
+				existingInv.Event = inv.Event
 				existingInv.Groom = inv.Groom
 				existingInv.Bride = inv.Bride
-				existingInv.Event = inv.Event
 				existingInv.Theme = inv.Theme
 				existingInv.Story = inv.Story
 				existingInv.Gallery = inv.Gallery
+				existingInv.Gift = inv.Gift
 				existingInv.Gifts = inv.Gifts
 				if err := tx.Save(&existingInv).Error; err != nil {
 					return nil, fmt.Errorf("failed to update invitation %s: %w", inv.Title, err)
@@ -422,6 +514,37 @@ func SeedDummyData(tx *gorm.DB) (map[string]int, error) {
 				return nil, fmt.Errorf("failed to seed guest: %w", err)
 			}
 		}
+
+		// Seed sample wishes for public guest book
+		wishesData := []models.Wish{
+			{
+				InvitationID:     targetInvitationID,
+				GuestName:        "Arthur",
+				AttendanceStatus: "hadir",
+				NumberOfGuests:   2,
+				Message:          "Selamat menempuh hidup baru untuk Mulyo dan Cempaka! Semoga menjadi keluarga yang sakinah, mawaddah, warahmah.",
+			},
+			{
+				InvitationID:     targetInvitationID,
+				GuestName:        "Nanik",
+				AttendanceStatus: "hadir",
+				NumberOfGuests:   1,
+				Message:          "Happy Wedding Mulyo & Cempaka! Bahagia dan langgeng selalu sampai kakek nenek yaa.",
+			},
+			{
+				InvitationID:     targetInvitationID,
+				GuestName:        "Budi Santoso",
+				AttendanceStatus: "hadir",
+				NumberOfGuests:   2,
+				Message:          "Barakallahu lakuma wa baraka 'alaikuma wa jama'a bainakuma fii khoir. Selamat ya!",
+			},
+		}
+
+		for _, w := range wishesData {
+			if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&w).Error; err != nil {
+				return nil, fmt.Errorf("failed to seed wish: %w", err)
+			}
+		}
 	}
 
 	result := map[string]int{
@@ -431,6 +554,7 @@ func SeedDummyData(tx *gorm.DB) (map[string]int, error) {
 		"orders_seeded":      len(ordersData),
 		"invitations_seeded": 2,
 		"guests_seeded":      10,
+		"wishes_seeded":      3,
 	}
 
 	return result, nil

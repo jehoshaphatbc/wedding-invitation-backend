@@ -235,6 +235,26 @@ func (s *ClientPortalService) UpdateInvitation(orderID, clientID, packageID uuid
 		invitation.Gifts = req.Gifts
 	}
 
+	// Audio & Verses
+	if req.AudioURL != nil {
+		invitation.AudioURL = req.AudioURL
+	}
+	if req.VerseText != nil {
+		invitation.VerseText = req.VerseText
+	}
+	if req.VerseRef != nil {
+		invitation.VerseRef = req.VerseRef
+	}
+	if req.CountdownTargetDate != nil {
+		invitation.CountdownTargetDate = req.CountdownTargetDate
+	}
+	if req.Events != nil {
+		invitation.Events = req.Events
+	}
+	if req.TemplateID != nil {
+		invitation.TemplateID = req.TemplateID
+	}
+
 	// 2. Lifecycle Status: transition to "published" once client submits groom/bride/event
 	hasGroom := invitation.Groom != nil || invitation.GroomData != nil
 	hasBride := invitation.Bride != nil || invitation.BrideData != nil

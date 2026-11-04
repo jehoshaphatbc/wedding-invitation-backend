@@ -479,7 +479,7 @@ func SeedDummyData(tx *gorm.DB) (map[string]int, error) {
 
 		case 2:
 			// Skenario 2b: Order baru yang belum ada record invitation sama sekali (invitation: nil)
-			if err := tx.Where("order_id = ?", po.ID).Delete(&models.Invitation{}).Error; err != nil {
+			if err := tx.Unscoped().Where("order_id = ?", po.ID).Delete(&models.Invitation{}).Error; err != nil {
 				return nil, fmt.Errorf("failed to clean up invitation for order 3: %w", err)
 			}
 		}

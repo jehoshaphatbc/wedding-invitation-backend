@@ -419,4 +419,99 @@ func TestClientPortal_AuthVerifyAndInvitation(t *testing.T) {
 		assert.Equal(t, "Data undangan berhasil disimpan", resp.Message)
 		assert.Equal(t, "published", resp.Data["status"])
 	})
+
+	t.Run("Conditional Feature Handling: bypass payload for gallery, story, gift is emptied when features_config has them false", func(t *testing.T) {
+		// Create a basic package with has_gallery = false, has_story = false, has_gift = false
+		basicPkg := &models.Package{
+			Name:  "Paket Bronze Basic",
+			Price: 500000,
+			FeaturesConfig: models.FeaturesConfig{
+				"has_story":     false,
+				"has_gallery":   false,
+				"gallery_limit": 0,
+				"has_gift":      false,
+				"has_countdown": true,
+				"has_maps":      true,
+				"has_rsvp":      true,
+			},
+		}
+		require.NoError(t, tx.Create(basicPkg).Error)
+
+		basicToken := uuid.New().String()
+		basicOrder := &models.Order{
+			InvoiceNumber: "INV-BRONZE-001",
+			ClientID:      client.ID,
+			PackageID:     basicPkg.ID,
+			TotalAmount:   500000,
+			Status:        models.OrderStatusPaid,
+			FormToken:     &basicToken,
+		}
+		require.NoError(t, tx.Create(basicOrder).Error)
+
+		// 1. Verify AuthVerify returns features_config
+		reqVerify, _ := http.NewRequest(http.MethodGet, "/api/v1/client/auth-verify?token="+basicToken, nil)
+		wVerify := httptest.NewRecorder()
+		router.ServeHTTP(wVerify, reqVerify)
+
+		assert.Equal(t, http.StatusOK, wVerify.Code)
+		var verifyResp struct {
+			Success bool                            `json:"success"`
+			Data    models.ClientAuthVerifyResponse `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal(wVerify.Body.Bytes(), &verifyResp))
+		assert.True(t, verifyResp.Success)
+		assert.False(t, verifyResp.Data.FeaturesConfig["has_gallery"].(bool))
+		assert.False(t, verifyResp.Data.FeaturesConfig["has_story"].(bool))
+		assert.False(t, verifyResp.Data.FeaturesConfig["has_gift"].(bool))
+
+		// 2. Submit form with bypass payload (sending gallery, story, gift despite package not allowing it)
+		payload := map[string]interface{}{
+			"title": "Bypass Attempt Wedding",
+			"groom": map[string]interface{}{
+				"full_name": "Dimas Pratama",
+				"nickname":  "Dimas",
+			},
+			"bride": map[string]interface{}{
+				"full_name": "Anisa Rahma",
+				"nickname":  "Anisa",
+			},
+			"gallery": []string{
+				"https://bypass.com/photo1.jpg",
+				"https://bypass.com/photo2.jpg",
+			},
+			"story": "Kisah cinta terlarang yang coba dibypass",
+			"gift": map[string]interface{}{
+				"bank_name":      "BCA",
+				"account_number": "999888777",
+				"account_name":   "Bypass Account",
+			},
+		}
+		bodyBytes, _ := json.Marshal(payload)
+		reqPost, _ := http.NewRequest(http.MethodPost, "/api/v1/client/invitation", bytes.NewBuffer(bodyBytes))
+		reqPost.Header.Set("Authorization", "Bearer "+basicToken)
+		reqPost.Header.Set("Content-Type", "application/json")
+		wPost := httptest.NewRecorder()
+		router.ServeHTTP(wPost, reqPost)
+
+		assert.Equal(t, http.StatusOK, wPost.Code)
+		var saveResp struct {
+			Success bool                   `json:"success"`
+			Message string                 `json:"message"`
+			Data    map[string]interface{} `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal(wPost.Body.Bytes(), &saveResp))
+		assert.True(t, saveResp.Success)
+
+		// Verify in Database: gallery, story, gift are empty/nil
+		var savedInv models.Invitation
+		err := tx.Where("order_id = ?", basicOrder.ID).First(&savedInv).Error
+		require.NoError(t, err)
+
+		assert.Nil(t, savedInv.Gallery, "Gallery must be set to nil because has_gallery is false")
+		assert.Empty(t, savedInv.GalleryURLs, "GalleryURLs must be empty because has_gallery is false")
+		assert.Nil(t, savedInv.Story, "Story must be set to nil because has_story is false")
+		assert.Nil(t, savedInv.StoryData, "StoryData must be set to nil because has_story is false")
+		assert.Nil(t, savedInv.Gift, "Gift must be set to nil because has_gift is false")
+		assert.Nil(t, savedInv.Gifts, "Gifts must be set to nil because has_gift is false")
+	})
 }

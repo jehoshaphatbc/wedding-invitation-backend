@@ -32,7 +32,7 @@ func (r *invitationRepository) Create(invitation *models.Invitation) error {
 
 func (r *invitationRepository) FindByOrderID(orderID uuid.UUID) (*models.Invitation, error) {
 	var invitation models.Invitation
-	err := r.db.Unscoped().Where("order_id = ?", orderID).First(&invitation).Error
+	err := r.db.Unscoped().Preload("Package").Preload("Order").Preload("Order.Package").Preload("Template").Where("order_id = ?", orderID).First(&invitation).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -44,7 +44,7 @@ func (r *invitationRepository) FindByOrderID(orderID uuid.UUID) (*models.Invitat
 
 func (r *invitationRepository) FindByID(id uuid.UUID) (*models.Invitation, error) {
 	var invitation models.Invitation
-	err := r.db.Preload("Package").Preload("Order").Preload("Template").Where("id = ?", id).First(&invitation).Error
+	err := r.db.Preload("Package").Preload("Order").Preload("Order.Package").Preload("Template").Where("id = ?", id).First(&invitation).Error
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func (r *invitationRepository) FindByID(id uuid.UUID) (*models.Invitation, error
 
 func (r *invitationRepository) FindBySlug(slug string) (*models.Invitation, error) {
 	var invitation models.Invitation
-	err := r.db.Preload("Package").Preload("Order").Preload("Template").Where("slug = ?", slug).First(&invitation).Error
+	err := r.db.Preload("Package").Preload("Order").Preload("Order.Package").Preload("Template").Where("slug = ?", slug).First(&invitation).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -65,7 +65,7 @@ func (r *invitationRepository) FindBySlug(slug string) (*models.Invitation, erro
 
 func (r *invitationRepository) FindByIDOrSlug(idOrSlug string) (*models.Invitation, error) {
 	var invitation models.Invitation
-	query := r.db.Preload("Package").Preload("Order").Preload("Template")
+	query := r.db.Preload("Package").Preload("Order").Preload("Order.Package").Preload("Template")
 	if parsedUUID, err := uuid.Parse(idOrSlug); err == nil {
 		query = query.Where("id = ? OR slug = ?", parsedUUID, idOrSlug)
 	} else {

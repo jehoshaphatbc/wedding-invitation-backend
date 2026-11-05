@@ -109,6 +109,7 @@ func (s *ClientPortalService) VerifyToken(token string) (*models.ClientAuthVerif
 			Name:           order.Package.Name,
 			FeaturesConfig: order.Package.FeaturesConfig,
 		}
+		res.FeaturesConfig = order.Package.FeaturesConfig
 	}
 
 	return res, nil
@@ -162,6 +163,19 @@ func (s *ClientPortalService) UpdateInvitation(orderID, clientID, packageID uuid
 		invitation.PackageID = packageID
 	}
 
+	// 2. Feature Flags Validation via Order -> Package relation
+	var featuresConfig models.FeaturesConfig
+	order, _ := s.orderRepo.FindByID(orderID)
+	if order != nil && order.Package != nil {
+		featuresConfig = order.Package.FeaturesConfig
+	} else if invitation != nil && invitation.Package != nil {
+		featuresConfig = invitation.Package.FeaturesConfig
+	}
+
+	hasStory := isFeatureEnabled(featuresConfig, "has_story")
+	hasGallery := isFeatureEnabled(featuresConfig, "has_gallery")
+	hasGift := isFeatureEnabled(featuresConfig, "has_gift")
+
 	if req.Title != nil && *req.Title != "" {
 		invitation.Title = *req.Title
 	}
@@ -205,40 +219,55 @@ func (s *ClientPortalService) UpdateInvitation(orderID, clientID, packageID uuid
 		invitation.Theme = req.Theme
 	}
 
-	// Story
-	if req.Story != nil {
-		invitation.Story = req.Story
-		invitation.StoryData = req.Story
-	} else if req.StoryData != nil {
-		invitation.Story = req.StoryData
-		invitation.StoryData = req.StoryData
-	}
-
-	// Gallery
-	if req.Gallery != nil {
-		invitation.Gallery = req.Gallery
-		if urls, ok := req.Gallery.([]string); ok {
-			invitation.GalleryURLs = urls
-		} else if slice, ok := req.Gallery.([]interface{}); ok {
-			var strList []string
-			for _, item := range slice {
-				if s, ok := item.(string); ok {
-					strList = append(strList, s)
-				}
-			}
-			invitation.GalleryURLs = strList
+	// Story (Conditional Feature Handling)
+	if hasStory {
+		if req.Story != nil {
+			invitation.Story = req.Story
+			invitation.StoryData = req.Story
+		} else if req.StoryData != nil {
+			invitation.Story = req.StoryData
+			invitation.StoryData = req.StoryData
 		}
-	} else if req.GalleryURLs != nil {
-		invitation.Gallery = req.GalleryURLs
-		invitation.GalleryURLs = req.GalleryURLs
+	} else {
+		invitation.Story = nil
+		invitation.StoryData = nil
 	}
 
-	// Gift & Gifts
-	if req.Gift != nil {
-		invitation.Gift = req.Gift
+	// Gallery (Conditional Feature Handling)
+	if hasGallery {
+		if req.Gallery != nil {
+			invitation.Gallery = req.Gallery
+			if urls, ok := req.Gallery.([]string); ok {
+				invitation.GalleryURLs = urls
+			} else if slice, ok := req.Gallery.([]interface{}); ok {
+				var strList []string
+				for _, item := range slice {
+					if s, ok := item.(string); ok {
+						strList = append(strList, s)
+					}
+				}
+				invitation.GalleryURLs = strList
+			}
+		} else if req.GalleryURLs != nil {
+			invitation.Gallery = req.GalleryURLs
+			invitation.GalleryURLs = req.GalleryURLs
+		}
+	} else {
+		invitation.Gallery = nil
+		invitation.GalleryURLs = nil
 	}
-	if req.Gifts != nil {
-		invitation.Gifts = req.Gifts
+
+	// Gift & Gifts (Conditional Feature Handling)
+	if hasGift {
+		if req.Gift != nil {
+			invitation.Gift = req.Gift
+		}
+		if req.Gifts != nil {
+			invitation.Gifts = req.Gifts
+		}
+	} else {
+		invitation.Gift = nil
+		invitation.Gifts = nil
 	}
 
 	// Audio & Verses
@@ -295,4 +324,28 @@ func (s *ClientPortalService) UpdateInvitation(orderID, clientID, packageID uuid
 	}
 
 	return invitation, nil
+}
+
+func isFeatureEnabled(features models.FeaturesConfig, featureKey string) bool {
+	if features == nil {
+		return true // Fallback to true if features config is not specified
+	}
+	val, exists := features[featureKey]
+	if !exists || val == nil {
+		return false
+	}
+	switch v := val.(type) {
+	case bool:
+		return v
+	case string:
+		return strings.EqualFold(v, "true") || v == "1"
+	case int:
+		return v != 0
+	case int64:
+		return v != 0
+	case float64:
+		return v != 0
+	default:
+		return false
+	}
 }

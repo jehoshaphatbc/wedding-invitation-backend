@@ -205,4 +205,67 @@ func TestPublicInvitationEndpoints(t *testing.T) {
 
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
+
+	t.Run("GET /api/v1/invitations/slug/:slug - Features Config and Conditional Payload with package feature flags", func(t *testing.T) {
+		// Create a package with has_gallery = false, has_story = false, has_gift = false
+		noGalleryPkg := &models.Package{
+			Name:  "Paket Silver Limited",
+			Price: 800000,
+			FeaturesConfig: models.FeaturesConfig{
+				"has_gallery":   false,
+				"has_story":     false,
+				"has_gift":      false,
+				"has_countdown": true,
+				"has_rsvp":      true,
+			},
+		}
+		require.NoError(t, tx.Create(noGalleryPkg).Error)
+
+		orderID := uuid.New()
+		order := &models.Order{
+			ID:            orderID,
+			InvoiceNumber: "INV-FEAT-TEST-001",
+			ClientID:      invitation.ClientID,
+			PackageID:     noGalleryPkg.ID,
+			TotalAmount:   800000,
+			Status:        models.OrderStatusPaid,
+		}
+		require.NoError(t, tx.Create(order).Error)
+
+		limitedSlug := "limited-features-wedding"
+		limitedInv := &models.Invitation{
+			OrderID:   orderID,
+			ClientID:  invitation.ClientID,
+			PackageID: noGalleryPkg.ID,
+			Title:     "Limited Wedding",
+			Slug:      &limitedSlug,
+			Status:    "published",
+		}
+		require.NoError(t, tx.Create(limitedInv).Error)
+
+		req, _ := http.NewRequest(http.MethodGet, "/api/v1/invitations/slug/"+limitedSlug, nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var resp struct {
+			Status string                       `json:"status"`
+			Data   *models.PublicInvitationData `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		assert.Equal(t, "success", resp.Status)
+		require.NotNil(t, resp.Data)
+
+		// Assert features_config is false for disabled features
+		assert.False(t, resp.Data.FeaturesConfig["has_gallery"].(bool))
+		assert.False(t, resp.Data.FeaturesConfig["has_story"].(bool))
+		assert.False(t, resp.Data.FeaturesConfig["has_gift"].(bool))
+
+		// Assert invitation payload has emptied gallery, gift, and story
+		content := resp.Data.Invitation
+		require.NotNil(t, content)
+		assert.Empty(t, content["gallery"])
+		assert.Nil(t, content["gift"])
+		assert.Nil(t, content["story"])
+	})
 }

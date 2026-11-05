@@ -54,7 +54,7 @@ func (s *PublicInvitationService) GetInvitationBySlug(slug string) (map[string]i
 	featuresConfig := s.resolveFeaturesConfig(invitation, template)
 
 	// 3. Resolve Inner Invitation Data
-	invitationPayload := s.buildInvitationPayload(invitation)
+	invitationPayload := s.buildInvitationPayload(invitation, featuresConfig)
 
 	// 4. Construct Public Contract
 	slugVal := ""
@@ -163,9 +163,13 @@ func (s *PublicInvitationService) resolveFeaturesConfig(invitation *models.Invit
 		}
 	}
 
-	// Merge package features config if present
+	// Merge package features config if present (overrides template defaults)
 	if invitation.Package != nil && invitation.Package.FeaturesConfig != nil {
 		for k, v := range invitation.Package.FeaturesConfig {
+			result[k] = v
+		}
+	} else if invitation.Order != nil && invitation.Order.Package != nil && invitation.Order.Package.FeaturesConfig != nil {
+		for k, v := range invitation.Order.Package.FeaturesConfig {
 			result[k] = v
 		}
 	}
@@ -173,7 +177,7 @@ func (s *PublicInvitationService) resolveFeaturesConfig(invitation *models.Invit
 	return result
 }
 
-func (s *PublicInvitationService) buildInvitationPayload(invitation *models.Invitation) map[string]interface{} {
+func (s *PublicInvitationService) buildInvitationPayload(invitation *models.Invitation, featuresConfig map[string]interface{}) map[string]interface{} {
 	payload := make(map[string]interface{})
 
 	// 1. Audio URL
@@ -333,66 +337,79 @@ func (s *PublicInvitationService) buildInvitationPayload(invitation *models.Invi
 		payload["countdown_target_date"] = "2026-05-18T09:00:00+08:00"
 	}
 
-	// 7. Gallery
+	// 7. Gallery (Conditional Feature Handling)
 	var galleryList []string
-	if len(invitation.GalleryURLs) > 0 {
-		galleryList = invitation.GalleryURLs
-	} else if invitation.Gallery != nil {
-		if rawSlice, ok := invitation.Gallery.([]interface{}); ok {
-			for _, item := range rawSlice {
-				if s, ok := item.(string); ok {
-					galleryList = append(galleryList, s)
+	if isFeatureFlagEnabled(featuresConfig, "has_gallery") {
+		if len(invitation.GalleryURLs) > 0 {
+			galleryList = invitation.GalleryURLs
+		} else if invitation.Gallery != nil {
+			if rawSlice, ok := invitation.Gallery.([]interface{}); ok {
+				for _, item := range rawSlice {
+					if s, ok := item.(string); ok {
+						galleryList = append(galleryList, s)
+					}
 				}
+			} else if strSlice, ok := invitation.Gallery.([]string); ok {
+				galleryList = strSlice
 			}
-		} else if strSlice, ok := invitation.Gallery.([]string); ok {
-			galleryList = strSlice
 		}
-	}
-	if len(galleryList) == 0 {
-		galleryList = []string{
-			"https://storage.domain.com/gallery/photo1.jpg",
-			"https://storage.domain.com/gallery/photo2.jpg",
-			"https://storage.domain.com/gallery/photo3.jpg",
+		if len(galleryList) == 0 {
+			galleryList = []string{
+				"https://storage.domain.com/gallery/photo1.jpg",
+				"https://storage.domain.com/gallery/photo2.jpg",
+				"https://storage.domain.com/gallery/photo3.jpg",
+			}
 		}
+	} else {
+		galleryList = []string{}
 	}
 	payload["gallery"] = galleryList
 
-	// 8. Gift
-	giftMap := make(map[string]interface{})
-	if g, ok := toMap(invitation.Gift); ok && len(g) > 0 {
-		giftMap = g
-	} else if invitation.Gifts != nil {
-		if giftsList, ok := invitation.Gifts.([]interface{}); ok && len(giftsList) > 0 {
-			if firstGift, ok := toMap(giftsList[0]); ok {
-				giftMap = firstGift
+	// 8. Gift (Conditional Feature Handling)
+	var giftMap map[string]interface{}
+	if isFeatureFlagEnabled(featuresConfig, "has_gift") {
+		giftMap = make(map[string]interface{})
+		if g, ok := toMap(invitation.Gift); ok && len(g) > 0 {
+			giftMap = g
+		} else if invitation.Gifts != nil {
+			if giftsList, ok := invitation.Gifts.([]interface{}); ok && len(giftsList) > 0 {
+				if firstGift, ok := toMap(giftsList[0]); ok {
+					giftMap = firstGift
+				}
 			}
 		}
-	}
-	if len(giftMap) == 0 {
-		giftMap = map[string]interface{}{
-			"bank_name":      "BCA",
-			"account_number": "127326134",
-			"account_name":   "Putu Cempaka Giriyanti Aryawijaya",
-			"qr_code_url":    nil,
-		}
-	} else {
-		// Ensure standard keys: bank_name, account_number, account_name
-		if _, ok := giftMap["account_name"]; !ok {
-			if ah, exists := giftMap["account_holder"]; exists {
-				giftMap["account_name"] = ah
+		if len(giftMap) == 0 {
+			giftMap = map[string]interface{}{
+				"bank_name":      "BCA",
+				"account_number": "127326134",
+				"account_name":   "Putu Cempaka Giriyanti Aryawijaya",
+				"qr_code_url":    nil,
 			}
-		}
-		if _, ok := giftMap["qr_code_url"]; !ok {
-			giftMap["qr_code_url"] = nil
+		} else {
+			// Ensure standard keys: bank_name, account_number, account_name
+			if _, ok := giftMap["account_name"]; !ok {
+				if ah, exists := giftMap["account_holder"]; exists {
+					giftMap["account_name"] = ah
+				}
+			}
+			if _, ok := giftMap["qr_code_url"]; !ok {
+				giftMap["qr_code_url"] = nil
+			}
 		}
 	}
 	payload["gift"] = giftMap
 
-	// 9. Story
-	if invitation.Story != nil {
-		payload["story"] = invitation.Story
-	} else if invitation.StoryData != nil {
-		payload["story"] = invitation.StoryData
+	// 9. Story (Conditional Feature Handling)
+	if isFeatureFlagEnabled(featuresConfig, "has_story") {
+		if invitation.Story != nil {
+			payload["story"] = invitation.Story
+		} else if invitation.StoryData != nil {
+			payload["story"] = invitation.StoryData
+		} else {
+			payload["story"] = nil
+		}
+	} else {
+		payload["story"] = nil
 	}
 
 	return payload
@@ -530,5 +547,29 @@ func getString(m map[string]interface{}, key, fallback string) string {
 		}
 	}
 	return fallback
+}
+
+func isFeatureFlagEnabled(features map[string]interface{}, featureKey string) bool {
+	if features == nil {
+		return false
+	}
+	val, exists := features[featureKey]
+	if !exists || val == nil {
+		return false
+	}
+	switch v := val.(type) {
+	case bool:
+		return v
+	case string:
+		return strings.EqualFold(v, "true") || v == "1"
+	case int:
+		return v != 0
+	case int64:
+		return v != 0
+	case float64:
+		return v != 0
+	default:
+		return false
+	}
 }
 

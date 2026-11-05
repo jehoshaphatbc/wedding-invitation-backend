@@ -329,6 +329,7 @@ type ClientAuthVerifyResponse struct {
 	Client           *ClientSummary        `json:"client"`
 	Order            ClientOrderSummary    `json:"order"`
 	Package          *ClientPackageSummary `json:"package"`
+	FeaturesConfig   FeaturesConfig        `json:"features_config,omitempty"`
 	Invitation       *Invitation           `json:"invitation"`
 }
 
